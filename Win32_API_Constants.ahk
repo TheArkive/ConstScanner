@@ -60,7 +60,7 @@ relist_const(nFilter:="",vFilter:="") {
     ctl := g["ConstList"]
     ctl.Opt("-Redraw")
     ctl.Delete()
-    t := 0, u := 0
+    t := 0, u := 0, i := 0, s := 0
     
     nFilter := StrReplace(nFilter,"*",".*")
     
@@ -78,49 +78,49 @@ relist_const(nFilter:="",vFilter:="") {
             If (g["NameBW"].Value) {
                 If (g["ValueEQ"].Value) {
                     If (!nFilter And !vFilter)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And !vFilter) And RegExMatch(const,"i)" nFilter) = 1)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((!nFilter And vFilter) And value=vFilter)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And vFilter) And (RegExMatch(const,"i)" nFilter) = 1 And value=vFilter))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                 } Else {
                     If (!nFilter And !vFilter)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And !vFilter) And RegExMatch(const,"i)" nFilter) = 1)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((!nFilter And vFilter) And InStr(value,vFilter))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And vFilter) And (RegExMatch(const,"i)" nFilter) = 1 And InStr(value,vFilter)))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                 }
             } Else {
                 If (g["ValueEQ"].Value) {
                     If (!nFilter And !vFilter)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And !vFilter) And RegExMatch(const,"i)" nFilter))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((!nFilter And vFilter) And value=vFilter)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And vFilter) And (RegExMatch(const,"i)" nFilter) And value=vFilter))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                 } Else {
                     If (!nFilter And !vFilter)
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And !vFilter) And RegExMatch(const,"i)" nFilter))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((!nFilter And vFilter) And InStr(value,vFilter))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                     Else If ((nFilter And vFilter) And (RegExMatch(const,"i)" nFilter) And InStr(value,vFilter)))
-                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u)
+                        ctl.Add(,const,value), t++, u := ((obj["type"] = "unknown") ? u+1 : u), i := ((obj["type"] = "integer") ? i+1 : i), s := ((obj["type"] = "string") ? s+1 : s)
                 }
             }
         }
     }
     
     ctl.Opt("+Redraw")
-    g["Total"].Text := "Total:  " t "    /    Unknown:  " u "    /    Known:  " t-u
+    g["Total"].Text := "Total: " t "    /    Unknown: " u "    /    Known: " t-u "    /    Integers: " i "    /    Strings: " s
     
     If (doReset) {
         doReset:=false
@@ -229,7 +229,7 @@ scan_const() {
     If (const_list.Has(""))
         const_list.Delete("")
     
-    Loop 4
+    Loop 2
         reparse1()
     
     Loop 18 ; re-use until no replacements
@@ -241,6 +241,8 @@ scan_const() {
     reparse4()
     
     reparse5()
+    
+    reparse2()
 }
 
 F2::{
@@ -248,9 +250,8 @@ F2::{
 }
 
 WM_KEYDOWN(wParam, lParam, msg, hwnd) { ; up / down scrolling with keyboard
-    If (g["ConstList"].hwnd = hwnd And (wParam = 38 Or wParam = 40)) {
+    If (g["ConstList"].hwnd = hwnd And (wParam = 38 Or wParam = 40))
         SetTimer "gui_timer", -100
-    }
 }
 
 gui_timer() {
@@ -301,9 +302,10 @@ reparse5() {
                 t++
             }
         }
+        c := A_Index
     }
     
-    ; msgbox "reparse5: " t
+    ; msgbox "reparse5: " t " / " c
 }
 
 reparse4() {
@@ -339,9 +341,10 @@ reparse4() {
                 t++
             }
         }
+        c := A_Index
     }
     
-    ; msgbox "reparse4: " t
+    ; msgbox "reparse4: " t " / " c
 }
 
 reparse3() { ; const integer with bitwise OR "|"
@@ -374,8 +377,9 @@ reparse3() { ; const integer with bitwise OR "|"
                 t++
             }
         }
+        c := A_Index
     }
-    ; msgbox "reparse3: " t
+    ; msgbox "reparse3: " t " / " c
 }
 
 reparse2() { ; only trying to calc [ const + number ] or similar
@@ -411,32 +415,42 @@ reparse2() { ; only trying to calc [ const + number ] or similar
                 t++
             }
         }
+        c := A_Index
     } ; end FOR loop
     
-    ; msgbox "reparse2: " t
+    ; msgbox "reparse2: " t " / " c
 }
 
 reparse1() { ; constants that point to a single constant / any type
-    t := 0, v := 0
+    t := 0, wtfList := ""
     For const, obj in const_list {
         cValue := obj["value"], cType := obj["type"]
         cComp := obj["complete"], cExp := obj["exp"]
+        
+        ; If (const = "DISPID_EVMETH_ONSCROLL")
+            ; msgbox "DISPID_EVMETH_ONSCROLL / " cValue " / " 
         
         If (cType = "unknown" And const_list.Has(cValue)) {
             nObj := const_list[cValue]
             nType := nObj["type"], nValue := nObj["value"]
             
-            If (obj["type"] != nType)
-                t++ ; msgbox const " / " obj["type"] " / " nType
+            ; If (const = "DISPID_EVMETH_ONSCROLL")
+                ; msgbox "DISPID_EVMETH_ONSCROLL / " cValue " / " nType
+            
+            ; If (obj["type"] != nType)
+                ; t++ ; msgbox const " / " obj["type"] " / " nType
+            
+            ; wtfList .= cValue "`r`n"
             
             obj["type"] := nType, obj["value"] := nValue 
             obj["complete"] := (nType != "unknown") ? true : obj["complete"]
             const_list[const] := obj
             
-            v++
+            t++
         }
     }
-    msgbox "reparse1: " t " / " v
+    ; A_Clipboard := wtfList
+    ; msgbox "reparse1: " t
 }
 
 eval(x) {
