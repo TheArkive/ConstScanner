@@ -11,18 +11,27 @@ Global const_list:="", g:="", doReset:=false, timerDelay := -500, unkFilter := f
 
 load_gui()
 
-scan_const()
-
-; saved_const := FileRead("const_list.txt")
-; const_list := jxon_load(saved_const)
+; === use only one option =============================================================
+; === option 1 ========================================================================
+; scan_const() ; do this to re-calc values
+; =====================================================================================
+; === option 2 ========================================================================
+saved_const := FileRead("const_list.txt") ; use these 2 lines to just load saved values
+const_list := jxon_load(saved_const)
+; =====================================================================================
 
 relist_const()
 
 OnMessage(0x0100,"WM_KEYDOWN") ; WM_KEYDOWN
 
+
+
 return
 
 #INCLUDE _JXON.ahk
+#INCLUDE TheArkive_CliSAK.ahk
+#INCLUDE TheArkive_Debug.ahk
+
 
 load_gui() {
     g := Gui.New("","Win32 API Constants")
@@ -46,6 +55,7 @@ load_gui() {
     ctl.ModifyCol(1,385), ctl.ModifyCol(2,385)
     ctl.OnEvent("click","gui_events")
     
+    g.Add("Text","xm y+5","Press CTRL+D to copy selected details.")
     g.Add("Edit","xm y+5 w800 r6 vDetails ReadOnly","")
     g.Add("Text","xm y+5 w800 vTotal","Please Wait...")
     
@@ -205,8 +215,10 @@ scan_const() {
         curVal := ""
         Try curVal := Integer(value)
         
-        If curVal = ""
+        If curVal = "" {
+            ; Debug.Msg(value)
             Try curVal := eval(value)
+        }
         
         If (IsInteger(curVal)) {
             const_list[const] := Map("const",const,"type","integer","value",curVal,"exp",value,"complete",true)
@@ -229,6 +241,8 @@ scan_const() {
     If (const_list.Has(""))
         const_list.Delete("")
     
+    
+    ; msgbox "start reparse1()"
     Loop 2
         reparse1()
     
@@ -240,13 +254,11 @@ scan_const() {
     
     reparse4()
     
-    reparse5()
+    ; msgbox "start reparse5()"
+    Loop 3
+        reparse5()
     
-    reparse2()
-}
-
-F2::{
-    FileAppend jxon_dump(const_list,4), "const_list.txt"
+    ; reparse2()
 }
 
 WM_KEYDOWN(wParam, lParam, msg, hwnd) { ; up / down scrolling with keyboard
@@ -258,14 +270,27 @@ gui_timer() {
     gui_events(g["ConstList"],g["ConstList"].GetNext())
 }
 
+; Name:  ADVISE_ALL
+; Value: ADVISE_CLIPPING | ADVISE_PALETTE | ADVISE_COLORKEY | ADVISE_POSITION
+; Expr:  ADVISE_CLIPPING | ADVISE_PALETTE | ADVISE_COLORKEY | ADVISE_POSITION
+; Type:  unknown
+
+; Name:  CERT_QUERY_FORMAT_FLAG_ALL
+; Value: CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED
+; Expr:  CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED
+; Type:  unknown
+
 reparse5() {
-    t := 0, opers := "+-*/^"
+    t := 0, opers := "+-*/^|&"
     For const, obj in const_list {
         cValue := obj["value"], cType := obj["type"]
         cComp := obj["complete"], cExp := obj["exp"]
         newVal := 0, finalVal := "", success := true
         
         If (cType = "unknown" And InStr(cValue," ")) {
+            ; If (const = "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED")
+                ; MsgBox "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED"
+            
             arr := StrSplit(cValue," ")
             
             If (arr[1] = "") 
@@ -276,7 +301,7 @@ reparse5() {
                 If (const_list.Has(v) And const_list[v]["type"] = "integer") {
                     newVal := Integer(const_list[v]["value"])
                 } Else If (IsInteger(v)) {
-                    newVal := v
+                    newVal := Integer(v)
                 } Else If (InStr(opers,v)) {
                     newVal := v
                 } Else {
@@ -292,10 +317,19 @@ reparse5() {
                 Try {
                     old := finalVal
                     finalVal := eval(finalVal)
-                    If (!IsInteger(finalVal))
+                    Debug.Msg(const ": " old " / finalVal: " finalVal)
+                    
+                    If (!IsInteger(finalVal)) {
+                        debug.msg("not working")
                         Continue
+                    }
+                    
+                    
                 } Catch e
                     Continue
+                
+                ; If (const = "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED")
+                        ; MsgBox "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED / finalVal: " finalVal " / old: " old " / cValue: " cValue
                 
                 obj["value"] := finalVal, obj["complete"] := true, obj["type"] := "integer"
                 const_list[const] := obj
@@ -305,7 +339,7 @@ reparse5() {
         c := A_Index
     }
     
-    ; msgbox "reparse5: " t " / " c
+    msgbox "reparse5: " t
 }
 
 reparse4() {
@@ -453,83 +487,29 @@ reparse1() { ; constants that point to a single constant / any type
     ; msgbox "reparse1: " t
 }
 
-eval(x) {
-    opers := "^/*-+"
-    If (!InStr(x,"^") And !InStr(x,"/") And !InStr(x,"*") And !InStr(x,"-") And !InStr(x,"+"))
+eval(mathStr) { ; chr 65-90 or 97-122
+    If mathStr = "" Or InStr(mathStr,Chr(34)) Or SubStr(mathStr,1,1) = "-"
         return ""
-    
-    numeric := true
-    Loop Parse x, " "
+    Loop Parse mathStr
     {
-        If (!IsNumber(A_LoopField) And !InStr(opers,A_LoopField)) {
-            numeric := false
-            Break
-        }
+        c := Ord(A_LoopField)
+        If (c >= 65 And c <= 90) Or (c >= 97 And c <= 122)
+            return "" ; actual string evaluated MUST be purely numerical with operators
     }
+    mathStr := StrReplace(StrReplace(StrReplace(mathStr,"^"," -bxor "),"&"," -band "),"|"," -bor ")
+    c := cli.new("powershell " mathStr), output := c.stdout, c := ""
     
-    If (!numeric)
-        return ""
-    
-    x := StrReplace(x,"**","^")
-    
-    ; funcExp := "abs|ceil|exp|floor|log|Ln|sqrt|sin|asin|cos|acos|tan|atan"
-    ; If (RegExMatch(x,"i)(^(" funcExp ")\x28(.*)\x29)$",m)) {
-        ; if (strLen(x) = strLen(m.Value(1))) {
-            ; simpleValue := m.Value(3)
-            ; funcName := m.Value(2)
-            
-            ; curVal := eval(simpleValue)
-            
-            ; funcName := StrLower(funcName)
-            ; Switch funcName {
-                ; case "abs": result := Abs(curVal)
-                ; case "ceil": result := Ceil(curVal)
-                ; case "exp": result := Exp(curVal)
-                ; case "floor": result := Floor(curVal)
-                ; case "log": result := Log(curVal)
-                ; case "Ln": result := Ln(curVal)
-                ; case "sqrt": result := Sqrt(curVal)
-                ; case "sin": result := Sin(curVal)
-                ; case "asin": result := ASin(curVal)
-                ; case "cos": result := Cos(curVal)
-                ; case "acos": result := ACos(curVal)
-                ; case "tan": result := Tan(curVal)
-                ; case "atan": result := ATan(curVal)
-            ; }
-        ; }
-        
-        ; return result
-    ; }
-    
-    result := ""
-    If (IsInteger(x))
-        return Integer(x)
-    Else If (IsFloat(x))
-        return Float(x)
-    
-    order := "^/*-+"
-    
-    Loop Parse order
-    {
-        If (o := InStr(x,A_LoopField)) {
-            p1 := Trim(SubStr(x,1,o-1)," `t")
-            p2 := Trim(SubStr(x,o+1)," `t")
-            
-            p1 := (IsNumber(p1) And InStr(p1,".")) ? Float(p1) : (IsNumber(p1)) ? Integer(p1) : eval(p1)
-            p2 := (IsNumber(p2) And InStr(p2,".")) ? Float(p2) : (IsNumber(p2)) ? Integer(p2) : eval(p2)
-            
-            If (p1 = "" Or p2 = "")
-                return ""
-            
-            Switch A_LoopField {
-                case "+": result := p1 + p2
-                case "-": result := p1 - p2
-                case "*": result := p1 * p2
-                case "/": result := p1 / p2
-                case "^": result := p1 ** p2
-            }
-        }
-    }
-    
-    return result ; msgbox "simple exp type 1: " Type(result) " / " result
+    return Trim(output,"`r`n`t ")
+}
+
+#HotIf WinActive("ahk_id " g.hwnd)
+
+F2::{
+    If (FileExist("const_list.txt"))
+        FileDelete "const_list.txt"
+    FileAppend jxon_dump(const_list,4), "const_list.txt"
+}
+
+^d::{
+    A_Clipboard := g["Details"].Value
 }
