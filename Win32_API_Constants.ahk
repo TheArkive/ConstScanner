@@ -8,6 +8,12 @@
 ; forums for posting thier lists of Win32 API constants.
 
 Global const_list:="", g:="", doReset:=false, timerDelay := -500, unkFilter := false
+Global Settings:=Map()
+
+If (FileExist("settings.json")) {
+    sText := FileRead("settings.json")
+    Settings := jxon_load(sText)
+}
 
 load_gui()
 
@@ -24,26 +30,31 @@ relist_const()
 
 OnMessage(0x0100,"WM_KEYDOWN") ; WM_KEYDOWN
 
-
-
 return
 
 #INCLUDE _JXON.ahk
 #INCLUDE TheArkive_CliSAK.ahk
-#INCLUDE TheArkive_Debug.ahk
+#INCLUDE TheArkive_Progress2.ahk
+#INCLUDE win32_header_parser.ahk
 
+#INCLUDE TheArkive_Debug.ahk
 
 load_gui() {
     g := Gui.New("","Win32 API Constants")
     g.OnEvent("close","close_gui")
     g.SetFont("s10","Consolas")
     
-    g.Add("Text","y10","Name:")
+    g.Add("Text","xm y10","Win32 Header Path:")
+    g.Add("Edit","x+2 yp-4 w635 vApiPath","")
+    g.Add("Button","x+0 vPickApiPath","...").OnEvent("click","gui_events")
+    g["ApiPath"].Value := (Settings.Has("ApiPath")) ? Settings["ApiPath"] : ""
+    
+    g.Add("Text","xm y+5","Name:")
     g.Add("Edit","yp-4 x+2 w100 vNameFilter","").OnEvent("change","gui_events")
     g.Add("Button","x+0 vNameFilterClear","X").OnEvent("click","gui_events")
     g.Add("CheckBox","x+12 yp+4 vNameBW","Begins with").OnEvent("click","gui_events")
     
-    g.Add("Text","x400 yp+4","Value:")
+    g.Add("Text","x400 yp","Value:")
     g.Add("Edit","yp-4 x+2 w100 vValueFilter","").OnEvent("change","gui_events")
     g.Add("Button","x+0 vValueFilterClear","X").OnEvent("click","gui_events")
     g.Add("CheckBox","x+12 yp+4 vValueEQ","Exact").OnEvent("click","gui_events")
@@ -56,13 +67,18 @@ load_gui() {
     ctl.OnEvent("click","gui_events")
     
     g.Add("Text","xm y+5","Press CTRL+D to copy selected details.")
-    g.Add("Edit","xm y+5 w800 r6 vDetails ReadOnly","")
-    g.Add("Text","xm y+5 w800 vTotal","Please Wait...")
+    g.Add("Edit","xm y+5 w800 r7 vDetails ReadOnly","")
+    g.Add("Text","xm y+5 w800 vTotal","Please Wait ...")
     
     g.Show()
 }
 
 close_gui(*) {
+    Settings["ApiPath"] := g["ApiPath"].Value
+    sText := jxon_dump(Settings,4)
+    If (FileExist("settings.json"))
+        FileDelete "settings.json"
+    FileAppend sText, "settings.json"
     ExitApp
 }
 
@@ -164,7 +180,9 @@ gui_events(ctl,info) {
         constExp := const_list[constName]["exp"]
         constComplete := const_list[constName]["complete"]
         
-        g["Details"].Value := "Name:  " constName "`r`nValue: " constValue "`r`nExpr:  " constExp "`r`nType:  " constType
+        g["Details"].Value := constName " := " constValue "`r`n" 
+                            . (IsInteger(constValue) ? constName " := " Format("0x{:X}",constValue) "`r`n" : "")
+                            . "`r`nValue: " constValue "`r`nExpr:  " constExp "`r`nType:  " constType
     } Else If (ctl.Name = "Unk") {
         unkFilter := true
         g["NameFilter"].Value := ""
@@ -180,6 +198,11 @@ gui_events(ctl,info) {
         g["ValueFilter"].Value := ""
         g["ValueEQ"].Value := 0
         SetTimer "relist_timer", timerDelay
+    } Else If (ctl.Name = "PickApiPath") {
+        curFile := Settings.Has("ApiPath") ? Settings["ApiPath"] : ""
+        selFile := DirSelect(curFile,,"Select Win32 header root directory:")
+        If (selFile)
+            Settings["ApiPath"] := selFile, g["ApiPath"].Value := selFile
     }
 }
 
@@ -226,12 +249,12 @@ scan_const() {
         }
         
         If (SubStr(value,1,1) = Chr(34) And SubStr(value,-1) = Chr(34) And !InStr(value,"+")) {
-            const_list[const] := Map("const",const,"type","string","value",Trim(value,Chr(34)),"exp",value,"complete",true)
+            const_list[const] := Map("const",const,"type","string","value",value,"exp",value,"complete",true)
             Continue
         }
         
         If (InStr(value,Chr(34)) And InStr(value,"+")) {
-            const_list[const] := Map("const",const,"type","string","value",value,"exp",value,"complete",false)
+            const_list[const] := Map("const",const,"type","unknown","value",value,"exp",value,"complete",false)
             Continue
         }
         
@@ -317,10 +340,10 @@ reparse5() {
                 Try {
                     old := finalVal
                     finalVal := eval(finalVal)
-                    Debug.Msg(const ": " old " / finalVal: " finalVal)
+                    ; Debug.Msg(const ": " old " / finalVal: " finalVal)
                     
                     If (!IsInteger(finalVal)) {
-                        debug.msg("not working")
+                        ; debug.msg("not working")
                         Continue
                     }
                     
@@ -339,7 +362,7 @@ reparse5() {
         c := A_Index
     }
     
-    msgbox "reparse5: " t
+    ; msgbox "reparse5: " t
 }
 
 reparse4() {
@@ -461,20 +484,9 @@ reparse1() { ; constants that point to a single constant / any type
         cValue := obj["value"], cType := obj["type"]
         cComp := obj["complete"], cExp := obj["exp"]
         
-        ; If (const = "DISPID_EVMETH_ONSCROLL")
-            ; msgbox "DISPID_EVMETH_ONSCROLL / " cValue " / " 
-        
         If (cType = "unknown" And const_list.Has(cValue)) {
             nObj := const_list[cValue]
             nType := nObj["type"], nValue := nObj["value"]
-            
-            ; If (const = "DISPID_EVMETH_ONSCROLL")
-                ; msgbox "DISPID_EVMETH_ONSCROLL / " cValue " / " nType
-            
-            ; If (obj["type"] != nType)
-                ; t++ ; msgbox const " / " obj["type"] " / " nType
-            
-            ; wtfList .= cValue "`r`n"
             
             obj["type"] := nType, obj["value"] := nValue 
             obj["complete"] := (nType != "unknown") ? true : obj["complete"]
@@ -508,6 +520,24 @@ F2::{
     If (FileExist("const_list.txt"))
         FileDelete "const_list.txt"
     FileAppend jxon_dump(const_list,4), "const_list.txt"
+    Msgbox "Data saved."
+}
+
+F3::{
+    Msgbox "Starting re-scan."
+    
+    g["ConstList"].Delete()
+    g["Total"].Value := "Please Wait ..."
+    g["Details"].Value := ""
+    
+    scan_const()
+    relist_const()
+    
+    Msgbox "Rescan complete."
+}
+
+F4::{
+    win32_header_parser()
 }
 
 ^d::{
