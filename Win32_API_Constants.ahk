@@ -375,145 +375,6 @@ gui_timer() {
 ; Expr:  CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED
 ; Type:  unknown
 
-reparse5() {
-    t := 0, opers := "+-*/^|&"
-    For const, obj in const_list {
-        cValue := obj["value"], cType := obj["type"]
-        cComp := obj["complete"], cExp := obj["exp"]
-        newVal := 0, finalVal := "", success := true
-        
-        If (cType = "unknown" And InStr(cValue," ")) {
-            ; If (const = "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED")
-                ; MsgBox "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED"
-            
-            arr := StrSplit(cValue," ")
-            
-            If (arr[1] = "") 
-                Continue
-            
-            For i, v in arr {
-                v := Trim(v)
-                If (const_list.Has(v) And const_list[v]["type"] = "integer") {
-                    newVal := Integer(const_list[v]["value"])
-                } Else If (IsInteger(v)) {
-                    newVal := Integer(v)
-                } Else If (InStr(opers,v)) {
-                    newVal := v
-                } Else {
-                    newVal := 0, finalVal := "", success := false
-                    Break ; MUST break / cancel changes to obj
-                }
-                
-                finalVal .= newVal " "
-            }
-            finalVal := Trim(finalVal)
-            
-            If (success) {
-                Try {
-                    old := finalVal
-                    finalVal := eval(finalVal)
-                    ; Debug.Msg(const ": " old " / finalVal: " finalVal)
-                    
-                    If (!IsInteger(finalVal)) {
-                        ; debug.msg("not working")
-                        Continue
-                    }
-                    
-                    
-                } Catch e
-                    Continue
-                
-                ; If (const = "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED")
-                        ; MsgBox "CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED / finalVal: " finalVal " / old: " old " / cValue: " cValue
-                
-                obj["value"] := finalVal, obj["complete"] := true, obj["type"] := "integer"
-                const_list[const] := obj
-                t++
-            }
-        }
-        c := A_Index
-    }
-    
-    ; msgbox "reparse5: " t
-}
-
-reparse4() {
-    t := 0
-    For const, obj in const_list {
-        cValue := obj["value"], cType := obj["type"]
-        cComp := obj["complete"], cExp := obj["exp"]
-        newVal := 0, finalVal := 0, success := true
-        
-        If (cType = "unknown" And InStr(cValue,"-")) {
-            arr := StrSplit(cValue,"-")
-            
-            If (arr.Length != 2 Or arr[1] = "") 
-                Continue
-            
-            For i, v in arr {
-                v := Trim(v)
-                If (const_list.Has(v) And const_list[v]["type"] = "integer") {
-                    newVal := Integer(const_list[v]["value"])
-                } Else If (IsInteger(v)) {
-                    newVal := Integer(v)
-                } Else {
-                    newVal := 0, finalVal := 0, success := false
-                    Break ; MUST break / cancel changes to obj
-                }
-                
-                finalVal -= newVal
-            }
-            
-            If (success) {
-                obj["value"] := finalVal, obj["complete"] := true, obj["type"] := "integer"
-                const_list[const] := obj
-                t++
-            }
-        }
-        c := A_Index
-    }
-    
-    ; msgbox "reparse4: " t " / " c
-}
-
-reparse3() { ; const integer with bitwise OR "|"
-    t := 0
-    For const, obj in const_list {
-        cValue := obj["value"], cType := obj["type"]
-        cComp := obj["complete"], cExp := obj["exp"]
-        newVal := 0, finalVal := 0, success := true
-        
-        If (cType = "unknown" And InStr(cValue,"|")) {
-            arr := StrSplit(cValue,"|")
-            
-            For i, v in arr {
-                v := Trim(v)
-                If (IsInteger(v))
-                    newVal := Integer(v)
-                Else If (const_list.Has(v) And const_list[v]["type"] = "integer") {
-                    newVal := const_list[v]["value"]
-                } Else {
-                    success := false
-                    Break
-                }
-                
-                finalVal := finalVal | newVal
-            }
-            
-            If (success) {
-                obj["value"] := finalVal, obj["complete"] := true, obj["type"] := "integer"
-                const_list[const] := obj
-                t++
-            }
-        }
-        c := A_Index
-    }
-    ; msgbox "reparse3: " t " / " c
-}
-
-
-
-
 eval(mathStr) { ; chr 65-90 or 97-122
     If mathStr = "" Or InStr(mathStr,Chr(34)) Or SubStr(mathStr,1,1) = "-"
         return ""
@@ -523,7 +384,9 @@ eval(mathStr) { ; chr 65-90 or 97-122
         If (c >= 65 And c <= 90) Or (c >= 97 And c <= 122)
             return "" ; actual string evaluated MUST be purely numerical with operators
     }
+    mathStr := StrReplace(StrReplace(mathStr,"< <","<<"),"> >",">>")
     mathStr := StrReplace(StrReplace(StrReplace(mathStr,"^"," -bxor "),"&"," -band "),"|"," -bor ")
+    mathStr := StrReplace(StrReplace(StrReplace(mathStr,"<<"," -shl "),">>"," -shr "),"~"," -bnot ")
     c := cli.new("powershell " mathStr), output := c.stdout, c := ""
     
     return Trim(output,"`r`n`t ")

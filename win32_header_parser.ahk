@@ -36,11 +36,17 @@ win32_header_parser() { ; total header files: 3,505
                 constName := m.Value(1), constExp := m.Value(2)
                 
                 comment := ""
-                If (RegExMatch(constExp,"( //.*| /\*.*)",m2))
-                    comment := Trim(m2.Value(0)," `t"), constExp := RegExReplace(constExp,"( //.*| /\*.*)","")
+                If (RegExMatch(constExp,"([ `t]*//.*|[ `t]*/\*.*)",m2)) {
+                    comment := Trim(m2.Value(0)," `t")
+                    constExp := RegExReplace(constExp,"([ `t]*//.*|[ `t]*/\*.*?\*/)","")
+                    constExp := RegExReplace(constExp,"[ `t]*/\*.*","")
+                }
                 
                 nextLine := fArr[i+c]
                 While (SubStr(constExp,-1) = "\") {
+                    nextLine := RegExReplace(nextLine,"([ `t]*//.*|[ `t]*/\*.*?\*/)","")
+                    nextLine := RegExReplace(nextLine,"[ `t]*/\*.*","")
+                    
                     constExp := SubStr(constExp,1,-1) . nextLine
                     c++, nextLine := fArr[i+c]
                 }
@@ -48,9 +54,6 @@ win32_header_parser() { ; total header files: 3,505
                 constExp := RegExReplace(Trim(constExp," `t"),"[ ]{2,}"," ")
                 If (InStr(constExp,"//") = 1) ; this is a comment, not a value/expression!
                     constExp := ""
-                
-                ; If (InStr(m.Value(2)," //") Or InStr(m.Value(2)," /*"))
-                    ; msgbox "DEFINE:   " constName " = " constExp "`r`n`r`norig:    " m.Value(2)
                 
                 vConst := value_cleanup(constExp)
                 item := Map("exp",constExp,"comment",comment,"file",file,"line",i,"value",vConst.value,"type",vConst.type)
@@ -71,28 +74,213 @@ win32_header_parser() { ; total header files: 3,505
     
     prog.Close()
     
-    passes := 2
-    Loop passes
-        reparse1(A_Index,passes)
+    prevList := ""
+    Loop {
+        curList := reparse1(A_Index)
+        If (curList = prevList)
+            Break
+        prevList := curList
+    }
     
-    passes := 21
-    Loop passes ; re-use until no replacements
-        reparse2(A_Index,passes)
+    prevList := ""
+    Loop { ; re-use until no replacements
+        curList := reparse2(A_Index)
+        If (curList = prevList)
+            Break
+        prevList := curList
+    }
+    
+    prevList := ""
+    Loop { ; re-use until no replacements
+        reparse3(A_Index)
+        If (curList = prevList)
+            Break
+        prevList := curList
+    }
+    
+    prevList := ""
+    Loop {
+        reparse4(A_Index)
+        If (curList = prevList)
+            Break
+        prevList := curList
+    }
+    
+    prevList := ""
+    Loop {
+        reparse5(A_Index)
+        If (curList = prevList)
+            Break
+        prevList := curList
+    }
     
     g["Total"].Value := "Scan complete: " const_list.Count " constants recorded."
     MsgBox "Scan complete.`r`n`r`nConstants recorded: " const_list.Count
 }
 
-reparse2(pass,totalPasses) { ; only trying to calc [ const + number ] or similar
-    t := 0
-    prog := progress2.New(0,const_list.Count,"title:Reparse 1")
-    prog.Update(A_Index,"Pass #" pass " of " totalPasses)
+
+reparse5(pass) {
+    t := 0, list := "", opers := "+-*/^|&<>~"
+    prog := progress2.New(0,const_list.Count,"title:Reparse 5")
+    prog.Update(A_Index,"Pass #" pass)
     
     For const, obj in const_list {
         prog.Update(A_Index)
         
-        cValue := obj["value"], cType := obj["type"]
-        cExp := obj["exp"]
+        cValue := obj["value"], cValue := StrReplace(cValue,"~"," ~ ")
+        cType := obj["type"], cExp := obj["exp"]
+        newVal := 0, finalVal := "", success := true
+        
+        
+        If (cType = "unknown" And InStr(cValue," ")) {
+            arr := StrSplit(cValue," ")
+            
+            If (arr[1] = "") 
+                Continue
+            
+            For i, v in arr {
+                v := Trim(v)
+                If (v = "")
+                    Continue
+                
+                If (RegExMatch(v,"i)0x[\da-f]+[ul]+"))
+                    v := RegExReplace(v,"i)(u|l)","")
+                
+                If (const_list.Has(v) And const_list[v]["type"] = "integer") {
+                    newVal := Integer(const_list[v]["value"])
+                } Else If (IsInteger(v)) {
+                    newVal := Integer(v)
+                } Else If (InStr(opers,v)) {
+                    newVal := v
+                } Else {
+                    newVal := 0, finalVal := "", success := false
+                    Break ; MUST break / cancel changes to obj
+                }
+                
+                finalVal .= newVal " "
+            }
+            finalVal := Trim(finalVal)
+            finalVal := StrReplace(StrReplace(finalVal,"< <","<<"),"> >",">>")
+            
+            If (success) {
+                Try {
+                    old := finalVal
+                    finalVal := eval(finalVal)
+                    
+                    If (!IsInteger(finalVal))
+                        Continue
+                } Catch e
+                    Continue
+                
+                obj["value"] := finalVal, obj["type"] := "integer"
+                const_list[const] := obj
+                t++, list .= const "`r`n"
+            }
+        }
+        c := A_Index
+    }
+    
+    prog.Close()
+    ; msgbox "reparse5: " t
+    return list
+}
+
+reparse4(pass) {
+    t := 0, list := ""
+    prog := progress2.New(0,const_list.Count,"title:Reparse 4")
+    prog.Update(A_Index,"Pass #" pass)
+    
+    For const, obj in const_list {
+        prog.Update(A_Index)
+        
+        cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
+        newVal := 0, finalVal := 0, success := true
+        
+        If (cType = "unknown" And InStr(cValue,"-")) {
+            arr := StrSplit(cValue,"-")
+            
+            If (arr.Length != 2 Or arr[1] = "") 
+                Continue
+            
+            For i, v in arr {
+                v := Trim(v)
+                If (const_list.Has(v) And const_list[v]["type"] = "integer") {
+                    newVal := Integer(const_list[v]["value"])
+                } Else If (IsInteger(v)) {
+                    newVal := Integer(v)
+                } Else {
+                    newVal := 0, finalVal := 0, success := false
+                    Break ; MUST break / cancel changes to obj
+                }
+                
+                finalVal -= newVal
+            }
+            
+            If (success) {
+                obj["value"] := finalVal, obj["type"] := "integer"
+                const_list[const] := obj
+                t++, list .= const "`r`n"
+            }
+        }
+        c := A_Index
+    }
+    
+    prog.Close()
+    ; msgbox "reparse4: " t
+    return list
+}
+
+reparse3(pass) { ; const integer with bitwise OR "|"
+    t := 0, list := ""
+    prog := progress2.New(0,const_list.Count,"title:Reparse 3")
+    prog.Update(A_Index,"Pass #" pass)
+     
+    For const, obj in const_list {
+        prog.Update(A_Index)
+        
+        cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
+        newVal := 0, finalVal := 0, success := true
+        
+        If (cType = "unknown" And InStr(cValue,"|")) {
+            arr := StrSplit(cValue,"|")
+            
+            For i, v in arr {
+                v := Trim(v)
+                If (IsInteger(v))
+                    newVal := Integer(v)
+                Else If (const_list.Has(v) And const_list[v]["type"] = "integer") {
+                    newVal := const_list[v]["value"]
+                } Else {
+                    success := false
+                    Break
+                }
+                
+                finalVal := finalVal | newVal
+            }
+            
+            If (success) {
+                obj["value"] := finalVal, obj["type"] := "integer"
+                const_list[const] := obj
+                t++, list .= const "`r`n"
+            }
+        }
+        c := A_Index
+    }
+    
+    prog.Close()
+    ; msgbox "reparses3: " t
+    return list
+}
+
+reparse2(pass) { ; only trying to calc [ const + number ] or similar
+    t := 0, list := ""
+    prog := progress2.New(0,const_list.Count,"title:Reparse 2")
+    prog.Update(A_Index,"Pass #" pass)
+    
+    For const, obj in const_list {
+        prog.Update(A_Index)
+        
+        cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
         newVal := 0, finalVal := 0, success := true
         
         If (cType = "unknown" And InStr(cValue,"+")) {
@@ -118,26 +306,26 @@ reparse2(pass,totalPasses) { ; only trying to calc [ const + number ] or similar
             If (success) {
                 obj["value"] := finalVal, obj["type"] := "integer"
                 const_list[const] := obj
-                t++
+                t++, list .= const "`r`n"
             }
         }
         c := A_Index
     } ; end FOR loop
     
     prog.Close()
-    msgbox "reparse2: " t ; " / " c
+    ; msgbox "reparse2: " t ; " / " c
+    return list
 }
 
-reparse1(pass,totalPasses) { ; constants that point to a single constant / any type
-    t := 0, wtfList := ""
+reparse1(pass) { ; constants that point to a single constant / any type
+    t := 0, list := ""
     prog := progress2.New(0,const_list.Count,"title:Reparse 1")
-    prog.Update(A_Index,"Pass #" pass " of " totalPasses)
+    prog.Update(A_Index,"Pass #" pass)
     
     For const, obj in const_list {
         prog.Update(A_Index)
         
-        cValue := obj["value"], cType := obj["type"]
-        cExp := obj["exp"]
+        cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
         
         If (cType = "unknown" And const_list.Has(cValue)) {
             nObj := const_list[cValue]
@@ -146,13 +334,13 @@ reparse1(pass,totalPasses) { ; constants that point to a single constant / any t
             obj["type"] := nType, obj["value"] := nValue 
             const_list[const] := obj
             
-            t++
+            t++, list .= const "`r`n"
         }
     }
     
     prog.Close()
-    ; A_Clipboard := wtfList
     ; msgbox "reparse1: " t
+    return list
 }
 
 ; 32-bit LONG max value = 2147483647
@@ -169,6 +357,10 @@ value_cleanup(inValue) {
     
     If (SubStr(inValue,1,1) = "(" And SubStr(inValue,-1) = ")") ; prune external parenthesis
         inValue := SubStr(inValue,2,-1)
+    
+    inValue := StrReplace(StrReplace(inValue,"<<"," << "),">>"," >> ")
+    inValue := RegExReplace(inValue,";$","")
+    inValue := (inValue != Chr(34) "+" Chr(34)) ? StrReplace(inValue,"+"," + ") : inValue
     
     cValue := inValue ; save cValue without outside (parenthesis)
     
@@ -192,23 +384,23 @@ value_cleanup(inValue) {
         }
     }
     
-    If (RegExMatch(inValue,"^\x28ULONG\x29(0x\d+)L$",m)) {
-        If (StrLen(m.Value(1)) = 10) {
+    If (RegExMatch(inValue,"i)^\x28ULONG\x29(0x[\dA-Fa-f]+)L$",m)) {
+        If (IsInteger(m.Value(1))) {
             inValue := Integer(m.Value(1)) + 2147483648 ; convert to unsigned long
             cType := "integer", cValue := inValue
             Goto Finish
         }
     }
     
-    If (RegExMatch(inValue,"^\x28LONG\x29(0x\d+)$",m)) { ; convert to signed long
-        If (StrLen(m.Value(1)) = 10) {
+    If (RegExMatch(inValue,"^\x28LONG\x29(0x[\dA-Fa-f]+)$",m)) { ; convert to signed long
+        If (IsInteger(m.Value(1))) {
             inValue := Integer(m.Value(1)) - 2147483648 ; convert to unsigned long
             cType := "integer", cValue := inValue
             Goto Finish
         }
     }
     
-    newValue := RegExReplace(inValue,"(U|L|UL|ULL|LL)$","")
+    newValue := RegExReplace(inValue,"i)(U|L|UL|ULL|LL)$","")
     If (newValue != inValue And IsInteger(newValue)) { ; type = numeric literal
         cType := "integer", cValue := Integer(newValue)
         Goto Finish
@@ -218,6 +410,8 @@ value_cleanup(inValue) {
         cType := "macro", cValue := inValue     ; so we don't continually recurse them.
         Goto Finish
     }
+    
+    inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
     
     If (SubStr(inValue,1,1) = q And SubStr(inValue,-1) = q And !InStr(inValue," + ")) { ; char string
         cType := "string", cValue := inValue
@@ -229,11 +423,15 @@ value_cleanup(inValue) {
         Goto Finish
     }
     
-    If (RegExMatch(inValue,"\w+\+(0x)?\d+|(0x)?\d+\+\w+") And !InStr(inValue," + ")) ; simple exp ===> var + int
-        inValue := StrReplace(inValue,"+"," + ") ; need to space out the arguements for parsing
+    ; If (RegExMatch(inValue,"\w+\+(0x)?\d+|(0x)?\d+\+\w+") And !InStr(inValue," + ")) ; simple exp ===> var + int
+        ; inValue := StrReplace(inValue,"+"," + ") ; need to space out the arguements for parsing
+    
+    If (inValue = Trim(inValue,"()") And InStr(inValue,")("))
+        inValue := "(" inValue ")"
     
     Finish:
     inValue := RegExReplace(inValue,"[ ]{2,}"," ") ; attempt to remove consecutive spaces, hopefully won't break anything
+    inValue := Trim(inValue," `t")
     return {value:cValue, type:cType}
 }
 

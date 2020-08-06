@@ -214,7 +214,7 @@ class progress2 {
 		If (x And y)
 			coords := "x" x " y" y
 		
-		progress2_gui.Show(coords)
+		progress2_gui.Show(coords " NA NoActivate")
 		this.guiHwnd := progress2_gui.hwnd
 		this.gui := progress2_gui
 	}
