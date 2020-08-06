@@ -171,19 +171,19 @@ class progress2 {
         x := "", y := ""
 		showTitle := this.title ? "" : " -Caption +0x40000" ; 0x40000 = thick border
 		range := this.rangeStart "-" this.rangeEnd
-		g := Gui.New("AlwaysOnTop -DPIScale -SysMenu" showTitle,this.title)
-		g.SetFont("s" this.fontSize,this.fontFace)
+		progress2_gui := Gui.New("AlwaysOnTop -DPIScale -SysMenu" showTitle,this.title)
+		progress2_gui.SetFont("s" this.fontSize,this.fontFace)
 		
 		align := this.mainTextAlign
-		mT := g.AddText("vMainText " align " w" this.width,this.mainText)
+		mT := progress2_gui.AddText("vMainText " align " w" this.width,this.mainText)
 		this.mainTextHwnd := mT.hwnd
 		mT.SetFont("s" this.mainTextSize)
 		
-		prog := g.AddProgress("vProgBar y+m xp w" this.width " Range" range,this.start)
+		prog := progress2_gui.AddProgress("vProgBar y+m xp w" this.width " Range" range,this.start)
 		this.progHwnd := prog.hwnd
 		
 		align := this.subTextAlign
-		sT := g.AddText("vSubText " align " w" this.width,this.subText)
+		sT := progress2_gui.AddText("vSubText " align " w" this.width,this.subText)
 		this.subTextHwnd := sT.hwnd
 		
 		If (this.hParent) {
@@ -198,11 +198,11 @@ class progress2 {
 			prog.GetPos(,,progW:=0,h:=0)
 			mT.GetPos(,,mTh:=0)
 			sT.GetPos(,,sTh:=0)
-			g.GetPos(,,gH:=0)
-			w := progW + (g.MarginX * 2) + (borderW * 2)
-			h := gH + captionH + (borderH * 2) + mTh + sTh + (g.MarginY * 4)
+			progress2_gui.GetPos(,,gH:=0)
+			w := progW + (progress2_gui.MarginX * 2) + (borderW * 2)
+			h := gH + captionH + (borderH * 2) + mTh + sTh + (progress2_gui.MarginY * 4)
 			x := Cx - (w/2), y := Cy - (h/2)
-			g.Opt("+Owner" this.hParent)
+			progress2_gui.Opt("+Owner" this.hParent)
 			
 			If (this.modal)
 				WinSetEnabled 0, "ahk_id " this.hParent
@@ -214,9 +214,9 @@ class progress2 {
 		If (x And y)
 			coords := "x" x " y" y
 		
-		g.Show(coords)
-		this.guiHwnd := g.hwnd
-		this.gui := g
+		progress2_gui.Show(coords)
+		this.guiHwnd := progress2_gui.hwnd
+		this.gui := progress2_gui
 	}
 	Update(value := "", mainText := "", subText := "") {
 		If (value != "")
