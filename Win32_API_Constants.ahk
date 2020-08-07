@@ -26,6 +26,9 @@ If (FileExist("const_list.txt")) {
     saved_const := FileRead("const_list.txt") ; use these 2 lines to just load saved values
     const_list := jxon_load(saved_const)
     relist_const()
+    fileList := listFiles()
+    g["FileFilter"].Add(fileList)
+    
 }
 ; =====================================================================================
 
@@ -40,6 +43,20 @@ return
 
 #INCLUDE TheArkive_Debug.ahk
 
+listFiles() {
+    list_of_files := Map(), fileList := []
+    
+    For const, obj in const_list {
+        file := obj["file"]
+        list_of_files[file] := ""
+    }
+    
+    For file in list_of_files
+        fileList.Push(file)
+    
+    return fileList
+}
+
 load_gui() {
     g := Gui.New("","Win32 API Constants")
     g.OnEvent("close","close_gui")
@@ -51,38 +68,42 @@ load_gui() {
     g["ApiPath"].Value := (Settings.Has("ApiPath")) ? Settings["ApiPath"] : ""
     g.Add("Button","x+0 w50 h25 vScan","Scan").OnEvent("click","gui_events")
     
-    g.Add("Text","xm y+5","Name:")
-    g.Add("Edit","Section yp-4 x+2 w100 vNameFilter","").OnEvent("change","gui_events")
-    g.Add("Button","x+0 hp vNameFilterClear","X").OnEvent("click","gui_events")
-    g.Add("CheckBox","xs yp+30 vNameBW","Begins with").OnEvent("click","gui_events")
-    
-    g.Add("Text","x250 ys+4","Value:")
-    g.Add("Edit","Section yp-4 x+2 w100 vValueFilter","").OnEvent("change","gui_events")
-    g.Add("Button","x+0 hp vValueFilterClear","X").OnEvent("click","gui_events")
-    g.Add("CheckBox","xs yp+30 vValueEQ","Exact").OnEvent("click","gui_events")
-    
-    g.Add("Text","x500 ys+4","Exp:")
-    g.Add("Edit","Section yp-4 x+2 w100 vExpFilter","").OnEvent("change","gui_events")
-    g.Add("Button","x+0 hp vExpFilterClear","X").OnEvent("click","gui_events")
-    
-    g.Add("Button","Section x680 ys h25 vDupe","Dupe").OnEvent("click","gui_events")
+    g.Add("Button","Section x+65 yp h25 vDupe","Dupe").OnEvent("click","gui_events")
     g.Add("Button","x+0 h25 vUnk","UNK").OnEvent("click","gui_events")
     g.Add("Button","x+0 w50 h25 vReset","Reset").OnEvent("click","gui_events")
     g.Add("CheckBox","xs ys+30 vDupeIntOnly","Dupe int only").OnEvent("click","gui_events")
     
-    ctl := g.Add("ListView","xm w800 h400 vConstList",["Name","Value","Expression"])
-    ctl.ModifyCol(1,385), ctl.ModifyCol(2,190), ctl.ModifyCol(3,195)
+    g.Add("Text","xm yp","Name:")
+    g.Add("Edit","Section yp x+2 w100 vNameFilter","").OnEvent("change","gui_events")
+    g.Add("Button","x+0 hp vNameFilterClear","X").OnEvent("click","gui_events")
+    g.Add("CheckBox","x+4 yp+4 vNameBW","Begins with").OnEvent("click","gui_events")
+    
+    g.Add("Text","x+20 ys+4","Value:")
+    g.Add("Edit","Section yp-4 x+2 w100 vValueFilter","").OnEvent("change","gui_events")
+    g.Add("Button","x+0 hp vValueFilterClear","X").OnEvent("click","gui_events")
+    g.Add("CheckBox","x+4 yp+4 vValueEQ","Exact").OnEvent("click","gui_events")
+    
+    g.Add("Text","x+20 ys+4","Exp:")
+    g.Add("Edit","Section yp-4 x+2 w100 vExpFilter","").OnEvent("change","gui_events")
+    g.Add("Button","x+0 hp vExpFilterClear","X").OnEvent("click","gui_events")
+    
+    g.Add("Text","xm y+5 Right w35","File:")
+    g.Add("ComboBox","yp-4 x+2 w450 vFileFilter").OnEvent("change","gui_events")
+    g.Add("Button","x+0 hp vFileFilterClear","X").OnEvent("click","gui_events")
+    
+    ctl := g.Add("ListView","xm y+5 w1000 h350 vConstList",["Name","Value","Expression","File"])
+    ctl.ModifyCol(1,385), ctl.ModifyCol(2,190), ctl.ModifyCol(3,195), ctl.ModifyCol(4,200)
     ctl.OnEvent("click","gui_events")
     
     g.Add("Text","xm y+5","Press CTRL+D to copy selected constant details.")
     
-    ctl := g.Add("Tab3","xm y+5 w800 h142 vTabs",["Details","Duplicates"])
+    ctl := g.Add("Tab3","xm y+5 w1000 h142 vTabs",["Details","Duplicates"])
     
     ctl.UseTab("Details")
-    g.Add("Edit","xm y+5 w800 r7 vDetails ReadOnly","")
+    g.Add("Edit","xm y+5 w1000 r7 vDetails ReadOnly","")
     
     ctl.UseTab("Duplicates")
-    g.Add("Edit","xm y+5 w800 r7 vDuplicates ReadOnly","")
+    g.Add("Edit","xm y+5 w1000 r7 vDuplicates ReadOnly","")
     
     ctl.UseTab()
     ctl := g.Add("Text","xm y+5 w800 vTotal","")
@@ -105,11 +126,11 @@ close_gui(*) {
     ExitApp
 }
 
-relist_const(nFilter:="",vFilter:="",eFilter:="") {
+relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
     ctl := g["ConstList"]
     ctl.Opt("-Redraw")
     ctl.Delete()
-    t := 0, u := 0, i := 0, s := 0, m := 0, r := 0
+    t := 0, u := 0, i := 0, s := 0, m := 0, r := 0, d := 0
     
     nFilter := !nFilter ? "*" : nFilter
     nFilter := StrReplace(nFilter,"*",".*")
@@ -129,26 +150,34 @@ relist_const(nFilter:="",vFilter:="",eFilter:="") {
     }
     eFilter := StrReplace(eFilter,"*",".*")
     
+    fFilter := !fFilter ? "*" : fFilter
+    fFilter := StrReplace(fFilter,".","\.")
+    fFilter := StrReplace(fFilter,"*",".*")
+    
     If (unkFilter) {
         For const, obj in const_list {
-            value := obj["value"], expr := obj["exp"]
-            If (obj["type"] = "unknown")
-                ctl.Add(,const,value,expr), t++, u++
+            value := obj["value"], expr := obj["exp"], file := obj["file"]
+            If (obj["type"] = "unknown") {
+                dupe := (obj.Has("dupe")) ? true : false
+                d := dupe ? d+1 : d
+                ctl.Add(,const,value,expr,file), t++, u++
+            }
         }
         unkFilter := false
     } Else If (dupeFilter) {
         For const, obj in const_list {
-            value := obj["value"], expr := obj["exp"], cType := obj["type"]
+            value := obj["value"], expr := obj["exp"], cType := obj["type"], file := obj["file"]
             If (obj.Has("dupe")) {
+                d++
                 If cType = "integer" ; {
-                    ctl.Add(,const,value,expr), i++, t++
+                    ctl.Add(,const,value,expr,file), i++, t++
                 If (!g["DupeIntOnly"].Value) {
                     If cType = "string"
-                        ctl.Add(,const,value,expr), s++, t++
+                        ctl.Add(,const,value,expr,file), s++, t++
                     Else If cType = "unknown"
-                        ctl.Add(,const,value,expr), u++, t++
+                        ctl.Add(,const,value,expr,file), u++, t++
                     Else If cType = "macro"
-                        ctl.Add(,const,value,expr), m++, t++
+                        ctl.Add(,const,value,expr,file), m++, t++
                     ; Else If cType = "struct"
                         ; ctl.Add(,const,value,expr), r++, t++
                 }
@@ -158,24 +187,26 @@ relist_const(nFilter:="",vFilter:="",eFilter:="") {
     } Else {
         For const, obj in const_list {
             doList := false
-            value := obj["value"]
-            expr := obj["exp"]
+            value := obj["value"], expr := obj["exp"], file := obj["file"]
+            dupe := (obj.Has("dupe")) ? true : false
             
-            If (RegExMatch(const,"i)" nFilter) And RegExMatch(value,"i)" vFilter) And RegExMatch(expr,"i)" eFilter))
+            If (RegExMatch(const,"i)" nFilter) And RegExMatch(value,"i)" vFilter) And RegExMatch(expr,"i)" eFilter) And RegExMatch(file,"i)" fFilter))
                 doList := true
             
             If (doList) {
-                ctl.Add(,const,value,expr), t++
+                ctl.Add(,const,value,expr,file), t++
                 u := ((obj["type"] = "unknown") ? u+1 : u)
                 i := ((obj["type"] = "integer") ? i+1 : i)
                 s := ((obj["type"] = "string") ? s+1 : s)
                 m := ((obj["type"] = "macro") ? m+1 : m)
+                
+                d := dupe ? d+1 : d
             }
         }
     }
     
     ctl.Opt("+Redraw")
-    g["Total"].Text := "Total: " t " / Unk: " u " / Known: " t-u " / Int: " i " / Str: " s " / Macros: " m
+    g["Total"].Text := "Total: " t " / Unk: " u " / Known: " t-u " / Int: " i " / Str: " s " / Macros: " m " / Dupes: " d
     
     If (doReset) {
         doReset:=false
@@ -184,7 +215,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="") {
 }
 
 gui_events(ctl,info) {
-    If (ctl.Name = "NameFilter") Or (ctl.Name = "ValueFilter") Or (ctl.Name = "NameBW") Or (ctl.Name = "ValueEQ") Or (ctl.Name = "ExpFilter") {
+    If (ctl.Name = "NameFilter") Or (ctl.Name = "ValueFilter") Or (ctl.Name = "NameBW") Or (ctl.Name = "ValueEQ") Or (ctl.Name = "ExpFilter") Or (ctl.Name = "FileFilter") {
         SetTimer "relist_timer", timerDelay
     } Else If (ctl.Name = "Reset") {
         g["NameFilter"].Value := ""
@@ -195,6 +226,7 @@ gui_events(ctl,info) {
         g["NameBW"].Value := 0
         g["ValueEQ"].Value := 0
         g["DupeIntOnly"].Value := 0
+        g["FileFilter"].Text := ""
         g["Tabs"].Choose(1)
         
         doReset := true
@@ -238,6 +270,7 @@ gui_events(ctl,info) {
         g["ExpFilter"].Value := ""
         g["Details"].Value := ""
         g["Duplicates"].Value := ""
+        g["FileFilter"].Text := ""
         SetTimer "relist_timer", timerDelay
     } Else If (ctl.Name = "Dupe") {
         dupeFilter := true
@@ -248,6 +281,7 @@ gui_events(ctl,info) {
         g["ExpFilter"].Value := ""
         g["Details"].Value := ""
         g["Duplicates"].Value := ""
+        g["FileFilter"].Text := ""
         SetTimer "relist_timer", timerDelay
     } Else If (ctl.Name = "NameFilterClear") {
         g["NameFilter"].Value := ""
@@ -259,6 +293,9 @@ gui_events(ctl,info) {
         SetTimer "relist_timer", timerDelay
     } Else If (ctl.Name = "ExpFilterClear") {
         g["ExpFilter"].Value := ""
+        SetTimer "relist_timer", timerDelay
+    } Else If (ctl.Name = "FileFilterClear") {
+        g["FileFilter"].Text := ""
         SetTimer "relist_timer", timerDelay
     } Else If (ctl.Name = "PickApiPath") {
         curFile := Settings.Has("ApiPath") ? Settings["ApiPath"] : ""
@@ -273,18 +310,22 @@ gui_events(ctl,info) {
         g["Details"].Value := ""
         g["Duplicates"].Value := ""
         g["ExpFilter"].Value := ""
+        g["FileFilter"].Text := ""
         g["Tabs"].Choose(1)
         
         g["ConstList"].Delete()
         g["Total"].Text := "Scanning Win32 API files..."
         
         win32_header_parser()
+        fileList := listFiles()
+        g["FileFilter"].Delete()
+        g["FileFilter"].Add(fileList)
         relist_const()
     }
 }
 
 relist_timer() {
-    relist_const(g["NameFilter"].value,g["ValueFilter"].value,g["ExpFilter"].Value)
+    relist_const(g["NameFilter"].value,g["ValueFilter"].value,g["ExpFilter"].Value,g["FileFilter"].Text)
 }
 
 WM_KEYDOWN(wParam, lParam, msg, hwnd) { ; up / down scrolling with keyboard
