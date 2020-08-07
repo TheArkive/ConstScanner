@@ -68,7 +68,7 @@ load_gui() {
     g.Add("Button","Section x680 ys h25 vDupe","Dupe").OnEvent("click","gui_events")
     g.Add("Button","x+0 h25 vUnk","UNK").OnEvent("click","gui_events")
     g.Add("Button","x+0 w50 h25 vReset","Reset").OnEvent("click","gui_events")
-    g.Add("CheckBox","xs ys+30 vNoDupeUnk","Excl unk on dupe").OnEvent("click","gui_events")
+    g.Add("CheckBox","xs ys+30 vDupeIntOnly","Dupe int only").OnEvent("click","gui_events")
     
     ctl := g.Add("ListView","xm w800 h400 vConstList",["Name","Value","Expression"])
     ctl.ModifyCol(1,385), ctl.ModifyCol(2,190), ctl.ModifyCol(3,195)
@@ -109,7 +109,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="") {
     ctl := g["ConstList"]
     ctl.Opt("-Redraw")
     ctl.Delete()
-    t := 0, u := 0, i := 0, s := 0, m := 0
+    t := 0, u := 0, i := 0, s := 0, m := 0, r := 0
     
     nFilter := !nFilter ? "*" : nFilter
     nFilter := StrReplace(nFilter,"*",".*")
@@ -140,14 +140,18 @@ relist_const(nFilter:="",vFilter:="",eFilter:="") {
         For const, obj in const_list {
             value := obj["value"], expr := obj["exp"], cType := obj["type"]
             If (obj.Has("dupe")) {
-                If cType = "integer" {
+                If cType = "integer" ; {
                     ctl.Add(,const,value,expr), i++, t++
-                } Else If cType = "string"
-                    ctl.Add(,const,value,expr), s++, t++
-                Else If cType = "unknown" And !g["NoDupeUnk"].Value
-                    ctl.Add(,const,value,expr), u++, t++
-                Else If cType = "macro"
-                    ctl.Add(,const,value,expr), m++, t++
+                If (!g["DupeIntOnly"].Value) {
+                    If cType = "string"
+                        ctl.Add(,const,value,expr), s++, t++
+                    Else If cType = "unknown"
+                        ctl.Add(,const,value,expr), u++, t++
+                    Else If cType = "macro"
+                        ctl.Add(,const,value,expr), m++, t++
+                    ; Else If cType = "struct"
+                        ; ctl.Add(,const,value,expr), r++, t++
+                }
             }
         }
         dupeFilter := false
@@ -190,7 +194,7 @@ gui_events(ctl,info) {
         g["Duplicates"].Value := ""
         g["NameBW"].Value := 0
         g["ValueEQ"].Value := 0
-        g["NoDupeUnk"].Value := 0
+        g["DupeIntOnly"].Value := 0
         g["Tabs"].Choose(1)
         
         doReset := true
@@ -283,97 +287,20 @@ relist_timer() {
     relist_const(g["NameFilter"].value,g["ValueFilter"].value,g["ExpFilter"].Value)
 }
 
-scan_const() {
-    const_list := Map(), const_exp := Map(), const_basic := Map(), delete_list := Map()
-    
-    arr := StrSplit(FileRead("constants.txt"),"`n","`r")
-    
-    For i, line in arr {
-        If (line = "[CONSTANT]")
-            Continue
-        
-        eq := InStr(line,"=")
-        const := Trim(SubStr(line,1,eq-1))
-        value := Trim(SubStr(line,eq+1)," =,")
-        
-        If (InStr(value,"(") = 1 And SubStr(value,-1) = ")")
-            value := SubStr(value,2,-1)
-        
-        If (value = "NUL" Or value = "NULL" Or value = "false")
-            value := 0
-        
-        If (value = "true")
-            value := 1
-        
-        If (InStr(value,"|"))
-            value := StrReplace(value,"|"," | ")
-        
-        curVal := ""
-        Try curVal := Integer(value)
-        
-        If curVal = ""
-            Try curVal := eval(value)
-        
-        If (IsInteger(curVal)) {
-            const_list[const] := Map("const",const,"type","integer","value",curVal,"exp",value,"complete",true)
-            Continue
-        }
-        
-        If (SubStr(value,1,1) = Chr(34) And SubStr(value,-1) = Chr(34) And !InStr(value,"+")) {
-            const_list[const] := Map("const",const,"type","string","value",value,"exp",value,"complete",true)
-            Continue
-        }
-        
-        If (InStr(value,Chr(34)) And InStr(value,"+")) {
-            const_list[const] := Map("const",const,"type","unknown","value",value,"exp",value,"complete",false)
-            Continue
-        }
-        
-        const_list[const] := Map("const",const,"type","unknown","value",value,"exp",value,"complete",false)
-    }
-    
-    If (const_list.Has(""))
-        const_list.Delete("")
-    
-    
-    ; msgbox "start reparse1()"
-    ; passes := 2
-    ; Loop passes
-        ; reparse1(A_Index,passes)
-    
-    ; Loop 18 ; re-use until no replacements
-        ; reparse2()
-    
-    ; Loop 3 ; re-use until no replacements
-        ; reparse3()
-    
-    ; reparse4()
-    
-    ; msgbox "start reparse5()"
-    ; Loop 3
-        ; reparse5()
-    
-    ; reparse2()
-}
-
 WM_KEYDOWN(wParam, lParam, msg, hwnd) { ; up / down scrolling with keyboard
-    If (g["ConstList"].hwnd = hwnd And (wParam = 38 Or wParam = 40))
-        SetTimer "gui_timer", -100
+    If (g["ConstList"].hwnd = hwnd And (wParam = 38 Or wParam = 40)) {
+        gui_timer(wParam)
+    }
 }
 
-gui_timer() {
-    gui_events(g["ConstList"],g["ConstList"].GetNext())
+gui_timer(key) {
+    ctl := g["ConstList"]
+    rMax := ctl.GetCount()
+    curRow := ctl.GetNext()
+    nextRow := (key=40) ? curRow+1 : (key=38) ? curRow-1 : curRow
+    nextRow := (nextRow > rMax) ? 0 : nextRow
+    gui_events(ctl,nextRow)
 }
-
-; Name:  ADVISE_ALL
-; Value: ADVISE_CLIPPING | ADVISE_PALETTE | ADVISE_COLORKEY | ADVISE_POSITION
-; Expr:  ADVISE_CLIPPING | ADVISE_PALETTE | ADVISE_COLORKEY | ADVISE_POSITION
-; Type:  unknown
-
-; Name:  CERT_QUERY_FORMAT_FLAG_ALL
-; Value: CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED
-; Expr:  CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED
-; Type:  unknown
 
 eval(mathStr) { ; chr 65-90 or 97-122
     If mathStr = "" Or InStr(mathStr,Chr(34)) Or SubStr(mathStr,1,1) = "-"
@@ -400,19 +327,6 @@ F2::{
         FileDelete "const_list.txt"
     FileAppend jxon_dump(const_list,4), "const_list.txt"
     Msgbox "Data saved."
-}
-
-F3::{
-    Msgbox "Starting re-scan."
-    
-    g["ConstList"].Delete()
-    g["Total"].Value := "Please Wait ..."
-    g["Details"].Value := ""
-    
-    scan_const()
-    relist_const()
-    
-    Msgbox "Rescan complete."
 }
 
 ^d::{

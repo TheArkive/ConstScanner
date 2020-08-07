@@ -86,7 +86,7 @@
 
 ; click_btn(p*) {
 	; If (!IsObject(prog)) {
-		; options := "mainText:Test Main Text,subText:Test Sub Text,title:test title,"
+		; options := "mainText:Test Main Text pqg,subText:Test Sub Text pqg,title:test title,"
 		; options .= "start:25,parent:" g.hwnd
 		; prog := progress2.New(0,100,options)
 	; } Else {
@@ -172,13 +172,13 @@ class progress2 {
 		showTitle := this.title ? "" : " -Caption +0x40000" ; 0x40000 = thick border
 		range := this.rangeStart "-" this.rangeEnd
 		progress2_gui := Gui.New("AlwaysOnTop -DPIScale -SysMenu" showTitle,this.title)
-		progress2_gui.SetFont("s" this.fontSize,this.fontFace)
 		
+		progress2_gui.SetFont("s" this.mainTextSize,this.fontFace)
 		align := this.mainTextAlign
 		mT := progress2_gui.AddText("vMainText " align " w" this.width,this.mainText)
 		this.mainTextHwnd := mT.hwnd
-		mT.SetFont("s" this.mainTextSize)
 		
+        progress2_gui.SetFont("s" this.fontSize)
 		prog := progress2_gui.AddProgress("vProgBar y+m xp w" this.width " Range" range,this.start)
 		this.progHwnd := prog.hwnd
 		

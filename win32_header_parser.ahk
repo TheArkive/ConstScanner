@@ -12,8 +12,8 @@ win32_header_parser() { ; total header files: 3,505
     
     prog := progress2.New(0,fCount,"title:Scanning files...,mainText:0 of " fCount)
     Static q := Chr(34)
-    rg1 := "i)^\#include[ ]+(<|\" q ")([^>" q "]+)(>|\" q ")"
-    rg2 := "i)^#define[ ]+(\w+)[ ]+(.+)"
+    rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
+    rg2 := "i)^#define[ `t]+(\w+)[ `t]+(.+)"
     
     Loop Files root "\*", "R"
     {
@@ -27,7 +27,6 @@ win32_header_parser() { ; total header files: 3,505
             constValue := "" ; init value
             c := 1 ; counter for more lines
             If (RegExMatch(curLine,rg1,m)) { ; include line
-                ; msgbox "INCLUDE:   " m.Value(2)
                 If (!IncludesList.Has(file))
                     IncludesList[file] := [m.Value(2)]
                 Else
@@ -55,7 +54,14 @@ win32_header_parser() { ; total header files: 3,505
                 If (InStr(constExp,"//") = 1) ; this is a comment, not a value/expression!
                     constExp := ""
                 
-                vConst := value_cleanup(constExp)
+                If (SubStr(constExp,1,-1) = constName And (SubStr(constExp,-1) = "w" Or SubStr(constExp,-1) = "a"))
+                    vConst := {value:constExp, type:"macro"}
+                ; Else If (!InStr(constExp," ") And RegExMatch(constExp,"i)[a-z0-9_]+") AND (RegExMatch(constExp,"i)(a|w|wide)$")))
+                    ; vConst := {value:constExp, type:"macro"}
+                Else If (SubStr(constExp,2) = constName And SubStr(constExp,1,1) = "_")
+                    vConst := {value:constExp, type:"struct"}
+                Else
+                    vConst := value_cleanup(constExp)
                 item := Map("exp",constExp,"comment",comment,"file",file,"line",i,"value",vConst.value,"type",vConst.type)
                 
                 If (!const_list.Has(constName))
@@ -77,7 +83,7 @@ win32_header_parser() { ; total header files: 3,505
     prevList := ""
     Loop {
         curList := reparse1(A_Index)
-        If (curList = prevList)
+        If (curList = prevList or curList = "")
             Break
         prevList := curList
     }
@@ -85,44 +91,73 @@ win32_header_parser() { ; total header files: 3,505
     prevList := ""
     Loop { ; re-use until no replacements
         curList := reparse2(A_Index)
-        If (curList = prevList)
+        If (curList = prevList or curList = "")
             Break
         prevList := curList
     }
     
     prevList := ""
     Loop { ; re-use until no replacements
-        reparse3(A_Index)
-        If (curList = prevList)
+        curList := reparse3(A_Index)
+        If (curList = prevList or curList = "")
             Break
         prevList := curList
     }
     
     prevList := ""
     Loop {
-        reparse4(A_Index)
-        If (curList = prevList)
+        curList := reparse4(A_Index)
+        If (curList = prevList or curList = "")
             Break
         prevList := curList
     }
     
     prevList := ""
     Loop {
-        reparse5(A_Index)
-        If (curList = prevList)
+        curList := reparse5(A_Index)
+        If (curList = prevList or curList = "")
             Break
         prevList := curList
     }
+    
+    reparse6()
     
     g["Total"].Value := "Scan complete: " const_list.Count " constants recorded."
-    MsgBox "Scan complete.`r`n`r`nConstants recorded: " const_list.Count
+    ; MsgBox "Scan complete.`r`n`r`nConstants recorded: " const_list.Count
+}
+
+reparse6() {
+    t := 0
+    prog := progress2.New(0,const_list.Count,"title:Reparse 6")
+    prog.Update(A_Index,"Reparse 6 - removing duplicates with same value")
+    
+    For const, obj in const_list {
+        prog.Update(A_Index)
+        
+        dupe := obj.Has("dupe") ? obj["dupe"] : ""
+        If (dupe) {
+            cValue := obj["value"], newDupes := []
+            For i, obj2 in dupe {
+                If (cValue != obj2["value"])
+                    newDupes.push(obj2)
+            }
+            
+            If (newDupes.Length)
+                const_list[const]["dupe"] := newDupes, t++
+            Else
+                const_list[const].Delete("dupe")
+        }
+    }
+    
+    prog.Close()
+    ; msgbox "saved dupes: " t
 }
 
 
 reparse5(pass) {
-    t := 0, list := "", opers := "+-*/^|&<>~"
+    t := 0, list := "", opers := "+-*/^|&<<>>~()"
     prog := progress2.New(0,const_list.Count,"title:Reparse 5")
-    prog.Update(A_Index,"Pass #" pass)
+    prog.Update(A_Index,"Reparse 5 - Pass #" pass)
     
     For const, obj in const_list {
         prog.Update(A_Index)
@@ -131,28 +166,30 @@ reparse5(pass) {
         cType := obj["type"], cExp := obj["exp"]
         newVal := 0, finalVal := "", success := true
         
+        ; If (const = "DDE_FACKRESERVED")
+            ; debug.msg("DDE_FACKRESERVED")
         
         If (cType = "unknown" And InStr(cValue," ")) {
             arr := StrSplit(cValue," ")
-            
-            If (arr[1] = "") 
-                Continue
             
             For i, v in arr {
                 v := Trim(v)
                 If (v = "")
                     Continue
                 
-                If (RegExMatch(v,"i)0x[\da-f]+[ul]+"))
-                    v := RegExReplace(v,"i)(u|l)","")
+                If (RegExMatch(v,"i)(0x)?[\da-f]+[ul]+$"))
+                    v := RegExReplace(v,"i)(u|l|ul|ull|ll)$","")
                 
                 If (const_list.Has(v) And const_list[v]["type"] = "integer") {
                     newVal := Integer(const_list[v]["value"])
                 } Else If (IsInteger(v)) {
                     newVal := Integer(v)
-                } Else If (InStr(opers,v)) {
+                } Else If (InStr(opers,v)) { ; Or v = "<<" Or v = ">>") {
                     newVal := v
                 } Else {
+                    ; If (const = "DDE_FACKRESERVED")
+                        ; debug.msg("DDE_FACKRESERVED - early quit 2 `r`n" finalVal " <" v "> " (const_list.Has(v) ? const_list[v]["value"] : ""))
+                    
                     newVal := 0, finalVal := "", success := false
                     Break ; MUST break / cancel changes to obj
                 }
@@ -160,15 +197,22 @@ reparse5(pass) {
                 finalVal .= newVal " "
             }
             finalVal := Trim(finalVal)
-            finalVal := StrReplace(StrReplace(finalVal,"< <","<<"),"> >",">>")
             
             If (success) {
                 Try {
                     old := finalVal
                     finalVal := eval(finalVal)
                     
-                    If (!IsInteger(finalVal))
+                    ; If (const = "DDE_FACKRESERVED")
+                        ; debug.msg("`r`n" old "`r`n" finalVal)
+                    
+                    If (!IsInteger(finalVal)) {
+                    
+                        ; If (const = "DDE_FACKRESERVED")
+                            ; debug.msg("`r`n" old "`r`n" finalVal " - early quit 3")
+                        
                         Continue
+                    }
                 } Catch e
                     Continue
                 
@@ -188,7 +232,7 @@ reparse5(pass) {
 reparse4(pass) {
     t := 0, list := ""
     prog := progress2.New(0,const_list.Count,"title:Reparse 4")
-    prog.Update(A_Index,"Pass #" pass)
+    prog.Update(A_Index,"Reparse 4 - Pass #" pass)
     
     For const, obj in const_list {
         prog.Update(A_Index)
@@ -233,7 +277,7 @@ reparse4(pass) {
 reparse3(pass) { ; const integer with bitwise OR "|"
     t := 0, list := ""
     prog := progress2.New(0,const_list.Count,"title:Reparse 3")
-    prog.Update(A_Index,"Pass #" pass)
+    prog.Update(A_Index,"Reparse 3 - Pass #" pass)
      
     For const, obj in const_list {
         prog.Update(A_Index)
@@ -275,7 +319,7 @@ reparse3(pass) { ; const integer with bitwise OR "|"
 reparse2(pass) { ; only trying to calc [ const + number ] or similar
     t := 0, list := ""
     prog := progress2.New(0,const_list.Count,"title:Reparse 2")
-    prog.Update(A_Index,"Pass #" pass)
+    prog.Update(A_Index,"Reparse 2 - Pass #" pass)
     
     For const, obj in const_list {
         prog.Update(A_Index)
@@ -320,7 +364,7 @@ reparse2(pass) { ; only trying to calc [ const + number ] or similar
 reparse1(pass) { ; constants that point to a single constant / any type
     t := 0, list := ""
     prog := progress2.New(0,const_list.Count,"title:Reparse 1")
-    prog.Update(A_Index,"Pass #" pass)
+    prog.Update(A_Index,"Reparse 1 - Pass #" pass)
     
     For const, obj in const_list {
         prog.Update(A_Index)
@@ -355,12 +399,27 @@ value_cleanup(inValue) {
     Static q := Chr(34)
     cType := "unknown"
     
-    If (SubStr(inValue,1,1) = "(" And SubStr(inValue,-1) = ")") ; prune external parenthesis
+    If (RegExMatch(inValue,"^\w+\x28")) {       ; Macros likely won't be resolved, so identify them as such
+        cType := "macro", cValue := inValue     ; so we don't continually recurse them.
+        Goto Finish
+    }
+    
+    If (SubStr(inValue,1,1) = "(" And SubStr(inValue,-1) = ")" And !InStr(inValue,")(")) ; prune external parenthesis
+        inValue := SubStr(inValue,2,-1)
+    Else If (SubStr(inValue,1,2) = "((" And SubStr(inValue,-2) = "))")
         inValue := SubStr(inValue,2,-1)
     
     inValue := StrReplace(StrReplace(inValue,"<<"," << "),">>"," >> ")
     inValue := RegExReplace(inValue,";$","")
-    inValue := (inValue != Chr(34) "+" Chr(34)) ? StrReplace(inValue,"+"," + ") : inValue
+    If (inValue != Chr(34) "+" Chr(34) And inValue != "'+'")
+        inValue := StrReplace(inValue,"+"," + ")
+    inValue := StrReplace(StrReplace(inValue,"< <","<<"),"> >",">>")
+    If (!RegExMatch(inValue,"(\~)?\x28\w+\x29[ ]*(\-)?\d") And !InStr(inValue,")(") And !InStr(inValue,"TEXT(",true) And !RegExMatch(inValue,"i)^[a-z]+\x28"))
+        inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
+    If (RegExMatch(inValue,"\~\x28[ ]*\w+[ ]*\|"))
+        inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
+    inValue := RegExReplace(inValue,"[ ]{2,}"," ")
+    inValue := Trim(inValue," `t")
     
     cValue := inValue ; save cValue without outside (parenthesis)
     
@@ -406,13 +465,6 @@ value_cleanup(inValue) {
         Goto Finish
     }
     
-    If (RegExMatch(inValue,"^\w+\x28")) {       ; Macros likely won't be resolved, so identify them as such
-        cType := "macro", cValue := inValue     ; so we don't continually recurse them.
-        Goto Finish
-    }
-    
-    inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
-    
     If (SubStr(inValue,1,1) = q And SubStr(inValue,-1) = q And !InStr(inValue," + ")) { ; char string
         cType := "string", cValue := inValue
         Goto Finish
@@ -422,12 +474,6 @@ value_cleanup(inValue) {
         cType := "string", cValue := inValue
         Goto Finish
     }
-    
-    ; If (RegExMatch(inValue,"\w+\+(0x)?\d+|(0x)?\d+\+\w+") And !InStr(inValue," + ")) ; simple exp ===> var + int
-        ; inValue := StrReplace(inValue,"+"," + ") ; need to space out the arguements for parsing
-    
-    If (inValue = Trim(inValue,"()") And InStr(inValue,")("))
-        inValue := "(" inValue ")"
     
     Finish:
     inValue := RegExReplace(inValue,"[ ]{2,}"," ") ; attempt to remove consecutive spaces, hopefully won't break anything
