@@ -1,6 +1,6 @@
 Win32 API Constants for AHK
 
-* Total:   135279
+* Total:   135,279
 * Unkonwn: 33,087
 * Known:   102,192
 * Integer: 78,335
