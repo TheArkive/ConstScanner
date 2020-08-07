@@ -62,6 +62,7 @@ win32_header_parser() { ; total header files: 3,505
                     vConst := {value:constExp, type:"struct"}
                 Else
                     vConst := value_cleanup(constExp)
+                
                 item := Map("exp",constExp,"comment",comment,"file",file,"line",i,"value",vConst.value,"type",vConst.type)
                 
                 If (!const_list.Has(constName))
