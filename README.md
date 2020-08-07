@@ -1,12 +1,12 @@
 Win32 API Constants for AHK
 
-Total:   135279
-Unkonwn: 33,087
-Known:   102,192
-Integer: 78,335
-String:  4,896
-Macros:  18,862
-Dupes:   2,281
+* Total:   135279
+* Unkonwn: 33,087
+* Known:   102,192
+* Integer: 78,335
+* String:  4,896
+* Macros:  18,862
+* Dupes:   2,281
 
 Stats DEFINITELY subject to change depending on my experiments.
 
