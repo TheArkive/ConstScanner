@@ -27,3 +27,5 @@ It is a work in progress.
 Please use the latest AutoHotkey v2 alpha (currently a119).
 
 https://www.autohotkey.com/download/2.0/
+
+You can check these values yourself by downloading the Windows 10 SDK.  Make sure you select to download the "Includes / Headers"... if this is not an option when you download / install the SDK it is probably automatic.  Just check the "Includes" folder in the installation destination.
