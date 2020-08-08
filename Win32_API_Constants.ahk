@@ -17,20 +17,15 @@ If (FileExist("settings.json")) {
 
 load_gui()
 
-; === use only one option =============================================================
-; === option 1 ========================================================================
-; scan_const() ; do this to re-calc values
-; =====================================================================================
-; === option 2 ========================================================================
-If (FileExist("const_list.txt")) {
-    saved_const := FileRead("const_list.txt") ; use these 2 lines to just load saved values
-    const_list := jxon_load(saved_const)
+If (Settings["AutoLoad"] And FileExist(Settings["LastFile"])) { ; load data if Auto-Load enabled
+    selFile := Settings["LastFile"]
+    SplitPath selFile, fileName
+    g["Total"].Value := "Loading data file.  Please Wait ..."
+    fileData := FileRead(selFile)
+    const_list := jxon_load(fileData)
     relist_const()
-    fileList := listFiles()
-    g["FileFilter"].Add(fileList)
-    
+    g["File"].Value := "File: " fileName
 }
-; =====================================================================================
 
 OnMessage(0x0100,"WM_KEYDOWN") ; WM_KEYDOWN
 
@@ -57,24 +52,52 @@ listFiles() {
     return fileList
 }
 
+LoadFile(selFile) {
+    g["Details"].Value := "", g["Duplicates"].Value := ""
+    UnlockGui(false)
+    SplitPath selFile, fileName
+    g["Total"].Value := "Loading data file.  Please Wait ..."
+    fileData := FileRead(selFile)
+    const_list := jxon_load(fileData)
+    relist_const()
+    g["File"].Value := "File: " fileName
+    Settings["LastFile"] := selFile
+    
+    fileList := listFiles()
+    g["FileFilter"]
+    UnlockGui(true)
+}
+
+UnlockGui(bool) {
+    g["ApiPath"].Enabled := bool, g["PickApiPath"].Enabled := bool, g["Scan"].Enabled := bool
+    g["Save"].Enabled := bool, g["Load"].Enabled := bool, g["AutoLoad"].Enabled := bool
+    g["NameFilter"].Enabled := bool, g["NameFilterClear"].Enabled := bool, g["NameBW"].Enabled := bool
+    g["ValueFilter"].Enabled := bool, g["ValueFilterClear"].Enabled := bool, g["ValueEQ"].Enabled := bool
+    g["ExpFilter"].Enabled := bool, g["ExpFilterClear"].Enabled := bool
+    g["FileFilter"].Enabled := bool, g["FileFilterClear"].Enabled := bool
+    g["Reset"].Enabled := bool, g["Unk"].Enabled := bool, g["Dupe"].Enabled := bool, g["DupeIntOnly"].Enabled := bool
+    g["ConstList"].Enabled := bool, g["Tabs"].Enabled := bool
+}
+
 load_gui() {
-    g := Gui.New("-DPIScale","Win32 API Constants")
+    g := Gui.New("-DPIScale +OwnDialogs","Win32 API Constants")
     g.OnEvent("close","close_gui")
     g.SetFont("s10","Consolas")
     
-    g.Add("Text","xm y10","Win32 Header Path:")
+    g.Add("Text","xm y10","C++ Source Path:")
     g.Add("Edit","x+2 yp-4 w585 vApiPath","")
     g.Add("Button","x+0 h25 vPickApiPath","...").OnEvent("click","gui_events")
     g["ApiPath"].Value := (Settings.Has("ApiPath")) ? Settings["ApiPath"] : ""
     g.Add("Button","x+0 w50 h25 vScan","Scan").OnEvent("click","gui_events")
     
-    g.Add("Button","Section x+65 yp h25 vDupe","Dupe").OnEvent("click","gui_events")
-    g.Add("Button","x+0 h25 vUnk","UNK").OnEvent("click","gui_events")
-    g.Add("Button","x+0 w50 h25 vReset","Reset").OnEvent("click","gui_events")
-    g.Add("CheckBox","xs ys+30 vDupeIntOnly","Dupe int only").OnEvent("click","gui_events")
+    g.Add("Button","x+0 h25 vSave","Save").OnEvent("click","gui_events")
+    g.Add("Button","x+0 h25 vLoad","Load").OnEvent("click","gui_events")
+    ctl := g.Add("CheckBox","x+5 yp+4 vAutoLoad","Auto-Load on Start")
+    ctl.OnEvent("click","gui_events")
+    ctl.Value := Settings["AutoLoad"]
     
-    g.Add("Text","xm yp","Name:")
-    g.Add("Edit","Section yp x+2 w100 vNameFilter","").OnEvent("change","gui_events")
+    g.Add("Text","xm y+10","Name:")
+    g.Add("Edit","Section yp-4 x+2 w100 vNameFilter","").OnEvent("change","gui_events")
     g.Add("Button","x+0 hp vNameFilterClear","X").OnEvent("click","gui_events")
     g.Add("CheckBox","x+4 yp+4 vNameBW","Begins with").OnEvent("click","gui_events")
     
@@ -83,7 +106,7 @@ load_gui() {
     g.Add("Button","x+0 hp vValueFilterClear","X").OnEvent("click","gui_events")
     g.Add("CheckBox","x+4 yp+4 vValueEQ","Exact").OnEvent("click","gui_events")
     
-    g.Add("Text","x+20 ys+4","Exp:")
+    g.Add("Text","x+20 ys+4","Expression:")
     g.Add("Edit","Section yp-4 x+2 w100 vExpFilter","").OnEvent("change","gui_events")
     g.Add("Button","x+0 hp vExpFilterClear","X").OnEvent("click","gui_events")
     
@@ -91,27 +114,34 @@ load_gui() {
     g.Add("ComboBox","yp-4 x+2 w450 vFileFilter").OnEvent("change","gui_events")
     g.Add("Button","x+0 hp vFileFilterClear","X").OnEvent("click","gui_events")
     
-    ctl := g.Add("ListView","xm y+5 w1000 h300 vConstList",["Name","Value","Expression","File"])
-    ctl.ModifyCol(1,385), ctl.ModifyCol(2,190), ctl.ModifyCol(3,195), ctl.ModifyCol(4,200)
+    g.Add("Button","Section x+155 w50 hp vReset","Reset").OnEvent("click","gui_events")
+    g.Add("Button","x+0 hp vUnk","Unknown").OnEvent("click","gui_events")
+    g.Add("Button","x+0 hp vDupe","Dupe").OnEvent("click","gui_events")
+    g.Add("CheckBox","x+5 yp hp vDupeIntOnly","Dupe int only").OnEvent("click","gui_events")
+    
+    ctl := g.Add("ListView","xm y+5 w1050 h300 vConstList",["Name","Value","Expression","File"])
+    ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,195), ctl.ModifyCol(4,200)
     ctl.OnEvent("click","gui_events")
     
     g.Add("Text","xm y+5","Press CTRL+D to copy selected constant details.")
     
-    ctl := g.Add("Tab3","xm y+5 w1000 h142 vTabs",["Details","Duplicates"])
+    ctl := g.Add("Tab3","xm y+5 w1050 h142 vTabs",["Details","Duplicates"])
     
     ctl.UseTab("Details")
-    g.Add("Edit","xm y+5 w1000 r7 vDetails ReadOnly","")
+    g.Add("Edit","xm y+5 w1050 r7 vDetails ReadOnly","")
     
     ctl.UseTab("Duplicates")
-    g.Add("Edit","xm y+5 w1000 r7 vDuplicates ReadOnly","")
+    g.Add("Edit","xm y+5 w1050 r7 vDuplicates ReadOnly","")
     
     ctl.UseTab()
-    ctl := g.Add("Text","xm y+5 w800 vTotal","")
+    ctl := g.Add("Text","xm y+5 w700 vTotal","")
     
     If (!FileExist("const_list.txt"))
         ctl.Text := "No list of constants."
     Else
         ctl.Text := "Please Wait ..."
+    
+    g.Add("Text","x+0 w350 Right vFile","Data File:")
     
     g.Show()
     g["NameFilter"].Focus()
@@ -299,7 +329,7 @@ gui_events(ctl,info) {
         SetTimer "relist_timer", timerDelay
     } Else If (ctl.Name = "PickApiPath") {
         curFile := Settings.Has("ApiPath") ? Settings["ApiPath"] : ""
-        selFile := DirSelect(curFile,,"Select Win32 header root directory:")
+        selFile := FileSelect("D 2",,"Select C++ source directory:")
         If (selFile)
             Settings["ApiPath"] := selFile, g["ApiPath"].Value := selFile
     } Else If (ctl.Name = "Scan") {
@@ -321,6 +351,24 @@ gui_events(ctl,info) {
         g["FileFilter"].Delete()
         g["FileFilter"].Add(fileList)
         relist_const()
+    } Else If (ctl.Name = "AutoLoad")
+        Settings["AutoLoad"] := ctl.Value
+    Else If (ctl.Name = "Load") {
+        selFile := FileSelect("1",A_ScriptDir "\data\","Load Constant File:","Data file (*.data)")
+        If (selFile)
+            LoadFile(selFile)
+    } Else If (ctl.Name = "Save") {
+        lastFile := Settings["LastFile"]
+        SplitPath lastFile, lastName
+        saveFile := FileSelect("S 18",A_ScriptDir "\data\" lastName,"Save Data File:")
+        If (saveFile) {
+            FileExist(saveFile) ? FileDelete(saveFile) : ""
+            fileData := Jxon_dump(const_list)
+            saveFile := (SubStr(saveFile,-5) != ".data") ? saveFile ".data" : saveFile
+            FileAppend fileData, saveFile
+            Settings["LastFile"] := saveFile
+            MsgBox "Data file successfully saved."
+        }
     }
 }
 
@@ -330,11 +378,11 @@ relist_timer() {
 
 WM_KEYDOWN(wParam, lParam, msg, hwnd) { ; up / down scrolling with keyboard
     If (g["ConstList"].hwnd = hwnd And (wParam = 38 Or wParam = 40)) {
-        gui_timer(wParam)
+        up_down_nav(wParam)
     }
 }
 
-gui_timer(key) {
+up_down_nav(key) {
     ctl := g["ConstList"]
     rMax := ctl.GetCount()
     curRow := ctl.GetNext()
@@ -361,14 +409,6 @@ eval(mathStr) { ; chr 65-90 or 97-122
 }
 
 #HotIf WinActive("ahk_id " g.hwnd)
-
-F2::{
-    Msgbox "Starting save data."
-    If (FileExist("const_list.txt"))
-        FileDelete "const_list.txt"
-    FileAppend jxon_dump(const_list,4), "const_list.txt"
-    Msgbox "Data saved."
-}
 
 ^d::{
     A_Clipboard := g["Details"].Value
