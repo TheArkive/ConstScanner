@@ -58,7 +58,7 @@ listFiles() {
 }
 
 load_gui() {
-    g := Gui.New("","Win32 API Constants")
+    g := Gui.New("-DPIScale","Win32 API Constants")
     g.OnEvent("close","close_gui")
     g.SetFont("s10","Consolas")
     
@@ -91,7 +91,7 @@ load_gui() {
     g.Add("ComboBox","yp-4 x+2 w450 vFileFilter").OnEvent("change","gui_events")
     g.Add("Button","x+0 hp vFileFilterClear","X").OnEvent("click","gui_events")
     
-    ctl := g.Add("ListView","xm y+5 w1000 h350 vConstList",["Name","Value","Expression","File"])
+    ctl := g.Add("ListView","xm y+5 w1000 h300 vConstList",["Name","Value","Expression","File"])
     ctl.ModifyCol(1,385), ctl.ModifyCol(2,190), ctl.ModifyCol(3,195), ctl.ModifyCol(4,200)
     ctl.OnEvent("click","gui_events")
     
