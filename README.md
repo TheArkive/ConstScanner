@@ -14,7 +14,7 @@ With this script you can select your "includes" folder for ANY C++ source files 
 
 PLEASE NOTE:  There are about 367 constants that are integers that also have duplicate values currently.  These 367 potential variances can mushroom into many other different values depending on which constants stem from other constants.
 
-Please double check your math before you take the values in this app as gospel.
+Please double check your math before you take the values in this app as gospel.  I am in the process of doing this checking of course.  I'll post updates when I'm certain the list is accurate.
 
 Variations that can affect constant values:
 
