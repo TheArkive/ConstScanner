@@ -10,6 +10,8 @@ Win32 API Constants for AHK
 
 Stats DEFINITELY subject to change depending on my experiments.
 
+With this script you can select your "includes" folder for ANY C++ source files and scan all files for constant and their values. Substitutions are automatically made, and calculations are done to resolve as many constants as possible. Generally speaking, macros won't be resolved, but if i find out how to properly calculate what the macros do, then I'll be able to resolve more constants.
+
 PLEASE NOTE:  There are about 367 constants that are integers that also have duplicate values currently.  These 367 potential variances can mushroom into many other different values depending on which constants stem from other constants.
 
 Please double check your math before you take the values in this app as gospel.
@@ -20,12 +22,7 @@ Variations that can affect constant values:
 * windows version
 * and others...
 
-I haven't yet got around to fully checking the values of all duplicate constants.  I plan to first check the 367 integer constant duplicates.
-
-It is a work in progress.
+I haven't yet got around to fully checking the values of all duplicate constants.  I plan to first check the 367 integer constant duplicates.  It is a work in progress.
 
 Please use the latest AutoHotkey v2 alpha (currently a119).
-
 https://www.autohotkey.com/download/2.0/
-
-You can check these values yourself by downloading the Windows 10 SDK.  Make sure you select to download the "Includes / Headers"... if this is not an option when you download / install the SDK it is probably automatic.  Just check the "Includes" folder in the installation destination.
