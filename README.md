@@ -1,28 +1,24 @@
-Win32 API Constants for AHK
+ConstDB (and scanner)
 
-* Total:   135,279
-* Unkonwn: 33,087
-* Known:   102,192
-* Integer: 78,335
-* String:  4,896
-* Macros:  18,862
-* Dupes:   2,281
+Pick the folder of your API (where the headers are) and scan.  This program will catalog all constants so they can be easily referenced with search filters.  You can save the current database in a file and load it up later, and also manage multiple databases of multiple APIs.
 
-Stats DEFINITELY subject to change depending on my experiments.
+Currently included API databases:
 
-With this script you can select your "includes" folder for ANY C++ source files and scan all files for constant and their values. Substitutions are automatically made, and calculations are done to resolve as many constants as possible. Generally speaking, macros won't be resolved, but if i find out how to properly calculate what the macros do, then I'll be able to resolve more constants.
+* Windoes 10 API - as of 2020 Aug
+* scintilla API v4.4.3
 
-PLEASE NOTE:  There are about 367 constants that are integers that also have duplicate values currently.  These 367 potential variances can mushroom into many other different values depending on which constants stem from other constants.
-
-Please double check your math before you take the values in this app as gospel.  I am in the process of doing this checking of course.  I'll post updates when I'm certain the list is accurate.
-
-Variations that can affect constant values:
+Sometimes there are duplicates after the scan.  Variations that can affect constant values:
 
 * architecture (x86 vs x64)
 * windows version
 * and others...
 
-I haven't yet got around to fully checking the values of all duplicate constants.  I plan to first check the 367 integer constant duplicates.  It is a work in progress.
+This program will perform all simple calculations, include basic math, bit shifts, and bitwise operations.  Generally when there are duplicates, the first value found is used for calculations.
 
-Please use the latest AutoHotkey v2 alpha (currently a119).
+Planned changes:
+
+* add a framework to allow user-defined values for duplicate constants
+
+Please use the latest AutoHotkey v2 alpha (currently a121).
+
 https://www.autohotkey.com/download/2.0/
