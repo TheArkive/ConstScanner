@@ -13,7 +13,7 @@ Pick the folder of your API (where the headers are) and scan.  This program will
 * windows version
 * and others...
 
-This program will perform all simple calculations, include basic math, bit shifts, and bitwise operations.  Generally when there are duplicates, the first value found is used for calculations.
+This program will perform all simple calculations, including basic math, bit shifts, and bitwise operations.  Generally when there are duplicates, the first value found is used for calculations.
 
 Planned changes:
 
