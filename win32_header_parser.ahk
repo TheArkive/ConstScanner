@@ -15,7 +15,7 @@ win32_header_parser() { ; total header files: 3,505
     rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
     rg2 := "i)^#define[ `t]+(\w+)[ `t]+(.+)"
     
-    Loop Files root "\*", "R"
+    Loop Files root "\*.h", "R"
     {
         fullPath := A_LoopFileFullPath, file := A_LoopFileName
         prog.Update(A_Index,A_Index " of " fCount,file)
@@ -444,9 +444,9 @@ value_cleanup(inValue) {
         }
     }
     
-    If (RegExMatch(inValue,"i)^\x28ULONG\x29(0x[\dA-Fa-f]+)L$",m)) {
-        If (IsInteger(m.Value(1))) {
-            inValue := Integer(m.Value(1)) + 2147483648 ; convert to unsigned long
+    If (RegExMatch(inValue,"i)^\x28ULONG\x29([ ]*)?(0x[\dA-F]+)L?$",m)) {
+        If (IsInteger(m.Value(2))) {
+            inValue := Integer(m.Value(2)) + 2147483648 ; convert to unsigned long
             cType := "integer", cValue := inValue
             Goto Finish
         }

@@ -1,31 +1,24 @@
-Win32 API Constants for AHK
+ConstDB (and scanner)
 
-* Total:   135,279
-* Unkonwn: 33,087
-* Known:   102,192
-* Integer: 78,335
-* String:  4,896
-* Macros:  18,862
-* Dupes:   2,281
+Pick the folder of your API (where the headers are) and scan.  This program will catalog all constants so they can be easily referenced with search filters.  You can save the current database in a file and load it up later, and also manage multiple databases of multiple APIs.
 
-Stats DEFINITELY subject to change depending on my experiments.
+Currently included API databases:
 
-PLEASE NOTE:  There are about 367 constants that are integers that also have duplicate values currently.  These 367 potential variances can mushroom into many other different values depending on which constants stem from other constants.
+* Windoes 10 API - as of 2020 Aug
+* scintilla API v4.4.3
 
-Please double check your math before you take the values in this app as gospel.
-
-Variations that can affect constant values:
+Sometimes there are duplicates after the scan.  Variations that can affect constant values:
 
 * architecture (x86 vs x64)
 * windows version
 * and others...
 
-I haven't yet got around to fully checking the values of all duplicate constants.  I plan to first check the 367 integer constant duplicates.
+This program will perform all simple calculations, include basic math, bit shifts, and bitwise operations.  Generally when there are duplicates, the first value found is used for calculations.
 
-It is a work in progress.
+Planned changes:
 
-Please use the latest AutoHotkey v2 alpha (currently a119).
+* add a framework to allow user-defined values for duplicate constants
+
+Please use the latest AutoHotkey v2 alpha (currently a121).
 
 https://www.autohotkey.com/download/2.0/
-
-You can check these values yourself by downloading the Windows 10 SDK.  Make sure you select to download the "Includes / Headers"... if this is not an option when you download / install the SDK it is probably automatic.  Just check the "Includes" folder in the installation destination.

@@ -64,7 +64,8 @@ LoadFile(selFile) {
     Settings["LastFile"] := selFile
     
     fileList := listFiles()
-    g["FileFilter"]
+    g["FileFilter"].Delete()
+    g["FileFilter"].Add(fileList)
     UnlockGui(true)
 }
 
@@ -184,6 +185,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
     fFilter := StrReplace(fFilter,".","\.")
     fFilter := StrReplace(fFilter,"*",".*")
     
+    prog := progress2.New(0,const_list.Count,"title:Loading...")
     If (unkFilter) {
         For const, obj in const_list {
             value := obj["value"], expr := obj["exp"], file := obj["file"]
@@ -196,6 +198,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
         unkFilter := false
     } Else If (dupeFilter) {
         For const, obj in const_list {
+            prog.Update(A_Index)
             value := obj["value"], expr := obj["exp"], cType := obj["type"], file := obj["file"]
             If (obj.Has("dupe")) {
                 d++
@@ -216,6 +219,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
         dupeFilter := false
     } Else {
         For const, obj in const_list {
+            prog.Update(A_Index)
             doList := false
             value := obj["value"], expr := obj["exp"], file := obj["file"]
             dupe := (obj.Has("dupe")) ? true : false
@@ -234,6 +238,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
             }
         }
     }
+    prog.close()
     
     ctl.Opt("+Redraw")
     g["Total"].Text := "Total: " t " / Unk: " u " / Known: " t-u " / Int: " i " / Str: " s " / Macros: " m " / Dupes: " d
@@ -342,6 +347,7 @@ gui_events(ctl,info) {
         g["ExpFilter"].Value := ""
         g["FileFilter"].Text := ""
         g["Tabs"].Choose(1)
+        UnlockGui(false)
         
         g["ConstList"].Delete()
         g["Total"].Text := "Scanning Win32 API files..."
@@ -351,6 +357,7 @@ gui_events(ctl,info) {
         g["FileFilter"].Delete()
         g["FileFilter"].Add(fileList)
         relist_const()
+        UnlockGui(true)
     } Else If (ctl.Name = "AutoLoad")
         Settings["AutoLoad"] := ctl.Value
     Else If (ctl.Name = "Load") {
@@ -362,12 +369,14 @@ gui_events(ctl,info) {
         SplitPath lastFile, lastName
         saveFile := FileSelect("S 18",A_ScriptDir "\data\" lastName,"Save Data File:")
         If (saveFile) {
+            UnlockGui(false)
             FileExist(saveFile) ? FileDelete(saveFile) : ""
             fileData := Jxon_dump(const_list)
             saveFile := (SubStr(saveFile,-5) != ".data") ? saveFile ".data" : saveFile
             FileAppend fileData, saveFile
             Settings["LastFile"] := saveFile
             MsgBox "Data file successfully saved."
+            UnlockGui(true)
         }
     }
 }
