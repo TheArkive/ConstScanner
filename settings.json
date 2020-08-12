@@ -1,5 +1,5 @@
 {
     "ApiPath": "D:\\DEV\\Win 10 SDK\\Include\\10.0.19041.0",
-    "AutoLoad": 0,
+    "AutoLoad": 1,
     "LastFile": "D:\\Drive\\UserData\\DEV\\AHK\\_GitHub\\Win32-API-Const\\data\\win32.data"
 }

@@ -81,288 +81,52 @@ win32_header_parser() { ; total header files: 3,505
     
     prog.Close()
     
-    prevList := ""
-    Loop {
-        curList := reparse1(A_Index)
-        If (curList = prevList or curList = "")
-            Break
-        prevList := curList
-    }
+    ; prevList := ""
+    ; Loop {
+        ; curList := reparse1a(A_Index)
+        ; If (curList = prevList or curList = "")
+            ; Break
+        ; prevList := curList
+    ; }
     
-    prevList := ""
-    Loop { ; re-use until no replacements
-        curList := reparse2(A_Index)
-        If (curList = prevList or curList = "")
-            Break
-        prevList := curList
-    }
+    ; prevList := ""
+    ; Loop { ; re-use until no replacements
+        ; curList := reparse2(A_Index)
+        ; If (curList = prevList or curList = "")
+            ; Break
+        ; prevList := curList
+    ; }
     
-    prevList := ""
-    Loop { ; re-use until no replacements
-        curList := reparse3(A_Index)
-        If (curList = prevList or curList = "")
-            Break
-        prevList := curList
-    }
+    ; prevList := ""
+    ; Loop { ; re-use until no replacements
+        ; curList := reparse3(A_Index)
+        ; If (curList = prevList or curList = "")
+            ; Break
+        ; prevList := curList
+    ; }
     
-    prevList := ""
-    Loop {
-        curList := reparse4(A_Index)
-        If (curList = prevList or curList = "")
-            Break
-        prevList := curList
-    }
+    ; prevList := ""
+    ; Loop {
+        ; curList := reparse4(A_Index)
+        ; If (curList = prevList or curList = "")
+            ; Break
+        ; prevList := curList
+    ; }
     
-    prevList := ""
-    Loop {
-        curList := reparse5(A_Index)
-        If (curList = prevList or curList = "")
-            Break
-        prevList := curList
-    }
+    ; prevList := ""
+    ; Loop {
+        ; curList := reparse5(A_Index)
+        ; If (curList = prevList or curList = "")
+            ; Break
+        ; prevList := curList
+    ; }
     
-    reparse6()
+    ; reparse6()
     
     g["Total"].Value := "Scan complete: " const_list.Count " constants recorded."
-    ; MsgBox "Scan complete.`r`n`r`nConstants recorded: " const_list.Count
 }
 
-reparse6() {
-    t := 0
-    prog := progress2.New(0,const_list.Count,"title:Reparse 6")
-    prog.Update(A_Index,"Reparse 6 - removing duplicates with same value")
-    
-    For const, obj in const_list {
-        prog.Update(A_Index)
-        
-        dupe := obj.Has("dupe") ? obj["dupe"] : ""
-        If (dupe) {
-            cValue := obj["value"], newDupes := []
-            For i, obj2 in dupe {
-                If (cValue != obj2["value"])
-                    newDupes.push(obj2)
-            }
-            
-            If (newDupes.Length)
-                const_list[const]["dupe"] := newDupes, t++
-            Else
-                const_list[const].Delete("dupe")
-        }
-    }
-    
-    prog.Close()
-    ; msgbox "saved dupes: " t
-}
-
-
-reparse5(pass) {
-    t := 0, list := "", opers := "+-*/^|&<<>>~()"
-    prog := progress2.New(0,const_list.Count,"title:Reparse 5")
-    prog.Update(A_Index,"Reparse 5 - Pass #" pass)
-    
-    For const, obj in const_list {
-        prog.Update(A_Index)
-        
-        cValue := obj["value"], cValue := StrReplace(cValue,"~"," ~ ")
-        cType := obj["type"], cExp := obj["exp"]
-        newVal := 0, finalVal := "", success := true
-        
-        ; If (const = "DDE_FACKRESERVED")
-            ; debug.msg("DDE_FACKRESERVED")
-        
-        If (cType = "unknown" And InStr(cValue," ")) {
-            arr := StrSplit(cValue," ")
-            
-            For i, v in arr {
-                v := Trim(v)
-                If (v = "")
-                    Continue
-                
-                If (RegExMatch(v,"i)(0x)?[\da-f]+[ul]+$"))
-                    v := RegExReplace(v,"i)(u|l|ul|ull|ll)$","")
-                
-                If (const_list.Has(v) And const_list[v]["type"] = "integer") {
-                    newVal := Integer(const_list[v]["value"])
-                } Else If (IsInteger(v)) {
-                    newVal := Integer(v)
-                } Else If (InStr(opers,v)) { ; Or v = "<<" Or v = ">>") {
-                    newVal := v
-                } Else {
-                    ; If (const = "DDE_FACKRESERVED")
-                        ; debug.msg("DDE_FACKRESERVED - early quit 2 `r`n" finalVal " <" v "> " (const_list.Has(v) ? const_list[v]["value"] : ""))
-                    
-                    newVal := 0, finalVal := "", success := false
-                    Break ; MUST break / cancel changes to obj
-                }
-                
-                finalVal .= newVal " "
-            }
-            finalVal := Trim(finalVal)
-            
-            If (success) {
-                Try {
-                    old := finalVal
-                    finalVal := eval(finalVal)
-                    
-                    ; If (const = "DDE_FACKRESERVED")
-                        ; debug.msg("`r`n" old "`r`n" finalVal)
-                    
-                    If (!IsInteger(finalVal)) {
-                    
-                        ; If (const = "DDE_FACKRESERVED")
-                            ; debug.msg("`r`n" old "`r`n" finalVal " - early quit 3")
-                        
-                        Continue
-                    }
-                } Catch e
-                    Continue
-                
-                obj["value"] := finalVal, obj["type"] := "integer"
-                const_list[const] := obj
-                t++, list .= const "`r`n"
-            }
-        }
-        c := A_Index
-    }
-    
-    prog.Close()
-    ; msgbox "reparse5: " t
-    return list
-}
-
-reparse4(pass) {
-    t := 0, list := ""
-    prog := progress2.New(0,const_list.Count,"title:Reparse 4")
-    prog.Update(A_Index,"Reparse 4 - Pass #" pass)
-    
-    For const, obj in const_list {
-        prog.Update(A_Index)
-        
-        cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
-        newVal := 0, finalVal := 0, success := true
-        
-        If (cType = "unknown" And InStr(cValue,"-")) {
-            arr := StrSplit(cValue,"-")
-            
-            If (arr.Length != 2 Or arr[1] = "") 
-                Continue
-            
-            For i, v in arr {
-                v := Trim(v)
-                If (const_list.Has(v) And const_list[v]["type"] = "integer") {
-                    newVal := Integer(const_list[v]["value"])
-                } Else If (IsInteger(v)) {
-                    newVal := Integer(v)
-                } Else {
-                    newVal := 0, finalVal := 0, success := false
-                    Break ; MUST break / cancel changes to obj
-                }
-                
-                finalVal -= newVal
-            }
-            
-            If (success) {
-                obj["value"] := finalVal, obj["type"] := "integer"
-                const_list[const] := obj
-                t++, list .= const "`r`n"
-            }
-        }
-        c := A_Index
-    }
-    
-    prog.Close()
-    ; msgbox "reparse4: " t
-    return list
-}
-
-reparse3(pass) { ; const integer with bitwise OR "|"
-    t := 0, list := ""
-    prog := progress2.New(0,const_list.Count,"title:Reparse 3")
-    prog.Update(A_Index,"Reparse 3 - Pass #" pass)
-     
-    For const, obj in const_list {
-        prog.Update(A_Index)
-        
-        cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
-        newVal := 0, finalVal := 0, success := true
-        
-        If (cType = "unknown" And InStr(cValue,"|")) {
-            arr := StrSplit(cValue,"|")
-            
-            For i, v in arr {
-                v := Trim(v)
-                If (IsInteger(v))
-                    newVal := Integer(v)
-                Else If (const_list.Has(v) And const_list[v]["type"] = "integer") {
-                    newVal := const_list[v]["value"]
-                } Else {
-                    success := false
-                    Break
-                }
-                
-                finalVal := finalVal | newVal
-            }
-            
-            If (success) {
-                obj["value"] := finalVal, obj["type"] := "integer"
-                const_list[const] := obj
-                t++, list .= const "`r`n"
-            }
-        }
-        c := A_Index
-    }
-    
-    prog.Close()
-    ; msgbox "reparses3: " t
-    return list
-}
-
-reparse2(pass) { ; only trying to calc [ const + number ] or similar
-    t := 0, list := ""
-    prog := progress2.New(0,const_list.Count,"title:Reparse 2")
-    prog.Update(A_Index,"Reparse 2 - Pass #" pass)
-    
-    For const, obj in const_list {
-        prog.Update(A_Index)
-        
-        cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
-        newVal := 0, finalVal := 0, success := true
-        
-        If (cType = "unknown" And InStr(cValue,"+")) {
-            arr := StrSplit(cValue,"+")
-            
-            If (arr.Length != 2 Or arr[1] = "") 
-                Continue
-            
-            For i, v in arr {
-                v := Trim(v)
-                If (const_list.Has(v) And const_list[v]["type"] = "integer") {
-                    newVal := Integer(const_list[v]["value"])
-                } Else If (IsInteger(v)) {
-                    newVal := Integer(v)
-                } Else {
-                    newVal := 0, finalVal := 0, success := false
-                    Break ; MUST break / cancel changes to obj
-                }
-                
-                finalVal += newVal
-            }
-            
-            If (success) {
-                obj["value"] := finalVal, obj["type"] := "integer"
-                const_list[const] := obj
-                t++, list .= const "`r`n"
-            }
-        }
-        c := A_Index
-    } ; end FOR loop
-    
-    prog.Close()
-    ; msgbox "reparse2: " t ; " / " c
-    return list
-}
-
-reparse1(pass) { ; constants that point to a single constant / any type
+reparse1a(pass) { ; constants that point to a single constant / any type
     t := 0, list := ""
     prog := progress2.New(0,const_list.Count,"title:Reparse 1")
     prog.Update(A_Index,"Reparse 1 - Pass #" pass)
@@ -372,7 +136,7 @@ reparse1(pass) { ; constants that point to a single constant / any type
         
         cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
         
-        If (cType = "unknown" And const_list.Has(cValue)) {
+        If (cType = "unknown") {
             nObj := const_list[cValue]
             nType := nObj["type"], nValue := nObj["value"]
             
@@ -383,10 +147,251 @@ reparse1(pass) { ; constants that point to a single constant / any type
         }
     }
     
-    prog.Close()
-    ; msgbox "reparse1: " t
+    prog.Close() ; msgbox "reparse1: " t
     return list
 }
+
+; reparse6() {
+    ; t := 0
+    ; prog := progress2.New(0,const_list.Count,"title:Reparse 6")
+    ; prog.Update(A_Index,"Reparse 6 - removing duplicates with same value")
+    
+    ; For const, obj in const_list {
+        ; prog.Update(A_Index)
+        
+        ; dupe := obj.Has("dupe") ? obj["dupe"] : ""
+        ; If (dupe) {
+            ; cValue := obj["value"], newDupes := []
+            ; For i, obj2 in dupe {
+                ; If (cValue != obj2["value"])
+                    ; newDupes.push(obj2)
+            ; }
+            
+            ; If (newDupes.Length)
+                ; const_list[const]["dupe"] := newDupes, t++
+            ; Else
+                ; const_list[const].Delete("dupe")
+        ; }
+    ; }
+    
+    ; prog.Close() ; msgbox "saved dupes: " t
+; }
+
+
+; reparse5(pass) {
+    ; t := 0, list := "", opers := "+-*/^|&<<>>~()"
+    ; prog := progress2.New(0,const_list.Count,"title:Reparse 5")
+    ; prog.Update(A_Index,"Reparse 5 - Pass #" pass)
+    
+    ; For const, obj in const_list {
+        ; prog.Update(A_Index)
+        
+        ; cValue := obj["value"], cValue := StrReplace(cValue,"~"," ~ ")
+        ; cType := obj["type"], cExp := obj["exp"]
+        ; newVal := 0, finalVal := "", success := true
+        
+        ; If (cType = "unknown" And InStr(cValue," ")) {
+            ; arr := StrSplit(cValue," ")
+            
+            ; For i, v in arr {
+                ; v := Trim(v)
+                ; If (v = "")
+                    ; Continue
+                
+                ; If (RegExMatch(v,"i)(0x)?[\da-f]+[ul]+$"))
+                    ; v := RegExReplace(v,"i)(u|l|ul|ull|ll)$","")
+                
+                ; If (const_list.Has(v) And const_list[v]["type"] = "integer") {
+                    ; newVal := Integer(const_list[v]["value"])
+                ; } Else If (IsInteger(v)) {
+                    ; newVal := Integer(v)
+                ; } Else If (InStr(opers,v)) { ; Or v = "<<" Or v = ">>") {
+                    ; newVal := v
+                ; } Else {
+                    ; newVal := 0, finalVal := "", success := false
+                    ; Break ; MUST break / cancel changes to obj
+                ; }
+                
+                ; finalVal .= newVal " "
+            ; }
+            ; finalVal := Trim(finalVal)
+            
+            ; If (success) {
+                ; Try {
+                    ; old := finalVal
+                    ; finalVal := eval(finalVal)
+                    
+                    ; If (!IsInteger(finalVal)) {
+                        ; Continue
+                    ; }
+                ; } Catch e
+                    ; Continue
+                
+                ; obj["value"] := finalVal, obj["type"] := "integer"
+                ; const_list[const] := obj
+                ; t++, list .= const "`r`n"
+            ; }
+        ; }
+        ; c := A_Index
+    ; }
+    
+    ; prog.Close() ; msgbox "reparse5: " t
+    ; return list
+; }
+
+; reparse4(pass) {
+    ; t := 0, list := ""
+    ; prog := progress2.New(0,const_list.Count,"title:Reparse 4")
+    ; prog.Update(A_Index,"Reparse 4 - Pass #" pass)
+    
+    ; For const, obj in const_list {
+        ; prog.Update(A_Index)
+        
+        ; cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
+        ; newVal := 0, finalVal := 0, success := true
+        
+        ; If (cType = "unknown" And InStr(cValue,"-")) {
+            ; arr := StrSplit(cValue,"-")
+            
+            ; If (arr.Length != 2 Or arr[1] = "") 
+                ; Continue
+            
+            ; For i, v in arr {
+                ; v := Trim(v)
+                ; If (const_list.Has(v) And const_list[v]["type"] = "integer") {
+                    ; newVal := Integer(const_list[v]["value"])
+                ; } Else If (IsInteger(v)) {
+                    ; newVal := Integer(v)
+                ; } Else {
+                    ; newVal := 0, finalVal := 0, success := false
+                    ; Break ; MUST break / cancel changes to obj
+                ; }
+                
+                ; finalVal -= newVal
+            ; }
+            
+            ; If (success) {
+                ; obj["value"] := finalVal, obj["type"] := "integer"
+                ; const_list[const] := obj
+                ; t++, list .= const "`r`n"
+            ; }
+        ; }
+        ; c := A_Index
+    ; }
+    
+    ; prog.Close() ; msgbox "reparse4: " t
+    ; return list
+; }
+
+; reparse3(pass) { ; const integer with bitwise OR "|"
+    ; t := 0, list := ""
+    ; prog := progress2.New(0,const_list.Count,"title:Reparse 3")
+    ; prog.Update(A_Index,"Reparse 3 - Pass #" pass)
+     
+    ; For const, obj in const_list {
+        ; prog.Update(A_Index)
+        
+        ; cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
+        ; newVal := 0, finalVal := 0, success := true
+        
+        ; If (cType = "unknown" And InStr(cValue,"|")) {
+            ; arr := StrSplit(cValue,"|")
+            
+            ; For i, v in arr {
+                ; v := Trim(v)
+                ; If (IsInteger(v))
+                    ; newVal := Integer(v)
+                ; Else If (const_list.Has(v) And const_list[v]["type"] = "integer") {
+                    ; newVal := const_list[v]["value"]
+                ; } Else {
+                    ; success := false
+                    ; Break
+                ; }
+                
+                ; finalVal := finalVal | newVal
+            ; }
+            
+            ; If (success) {
+                ; obj["value"] := finalVal, obj["type"] := "integer"
+                ; const_list[const] := obj
+                ; t++, list .= const "`r`n"
+            ; }
+        ; }
+        ; c := A_Index
+    ; }
+    
+    ; prog.Close() ; msgbox "reparses3: " t
+    ; return list
+; }
+
+; reparse2(pass) { ; only trying to calc [ const + number ] or similar
+    ; t := 0, list := ""
+    ; prog := progress2.New(0,const_list.Count,"title:Reparse 2")
+    ; prog.Update(A_Index,"Reparse 2 - Pass #" pass)
+    
+    ; For const, obj in const_list {
+        ; prog.Update(A_Index)
+        
+        ; cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
+        ; newVal := 0, finalVal := 0, success := true
+        
+        ; If (cType = "unknown" And InStr(cValue,"+")) {
+            ; arr := StrSplit(cValue,"+")
+            
+            ; If (arr.Length != 2 Or arr[1] = "") 
+                ; Continue
+            
+            ; For i, v in arr {
+                ; v := Trim(v)
+                ; If (const_list.Has(v) And const_list[v]["type"] = "integer") {
+                    ; newVal := Integer(const_list[v]["value"])
+                ; } Else If (IsInteger(v)) {
+                    ; newVal := Integer(v)
+                ; } Else {
+                    ; newVal := 0, finalVal := 0, success := false
+                    ; Break ; MUST break / cancel changes to obj
+                ; }
+                
+                ; finalVal += newVal
+            ; }
+            
+            ; If (success) {
+                ; obj["value"] := finalVal, obj["type"] := "integer"
+                ; const_list[const] := obj
+                ; t++, list .= const "`r`n"
+            ; }
+        ; }
+        ; c := A_Index
+    ; } ; end FOR loop
+    
+    ; prog.Close() ; msgbox "reparse2: " t ; " / " c
+    ; return list
+; }
+
+; reparse1(pass) { ; constants that point to a single constant / any type
+    ; t := 0, list := ""
+    ; prog := progress2.New(0,const_list.Count,"title:Reparse 1")
+    ; prog.Update(A_Index,"Reparse 1 - Pass #" pass)
+    
+    ; For const, obj in const_list {
+        ; prog.Update(A_Index)
+        
+        ; cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
+        
+        ; If (cType = "unknown" And const_list.Has(cValue)) {
+            ; nObj := const_list[cValue]
+            ; nType := nObj["type"], nValue := nObj["value"]
+            
+            ; obj["type"] := nType, obj["value"] := nValue 
+            ; const_list[const] := obj
+            
+            ; t++, list .= const "`r`n"
+        ; }
+    ; }
+    
+    ; prog.Close() ; msgbox "reparse1: " t
+    ; return list
+; }
 
 ; 32-bit LONG max value = 2147483647
 ; 32-bit ULONG max value = 4294967296
@@ -405,20 +410,23 @@ value_cleanup(inValue) {
         Goto Finish
     }
     
-    If (SubStr(inValue,1,1) = "(" And SubStr(inValue,-1) = ")" And !InStr(inValue,")(")) ; prune external parenthesis
-        inValue := SubStr(inValue,2,-1)
-    Else If (SubStr(inValue,1,2) = "((" And SubStr(inValue,-2) = "))")
-        inValue := SubStr(inValue,2,-1)
+    ; If (SubStr(inValue,1,1) = "(" And SubStr(inValue,-1) = ")" And !InStr(inValue,")(")) ; prune external parenthesis
+        ; inValue := SubStr(inValue,2,-1)
+    ; Else If (SubStr(inValue,1,2) = "((" And SubStr(inValue,-2) = "))")
+        ; inValue := SubStr(inValue,2,-1)
     
-    inValue := StrReplace(StrReplace(inValue,"<<"," << "),">>"," >> ")
+    ; inValue := StrReplace(StrReplace(inValue,"<<"," << "),">>"," >> ")
+    
     inValue := RegExReplace(inValue,";$","")
-    If (inValue != Chr(34) "+" Chr(34) And inValue != "'+'")
-        inValue := StrReplace(inValue,"+"," + ")
-    inValue := StrReplace(StrReplace(inValue,"< <","<<"),"> >",">>")
-    If (!RegExMatch(inValue,"(\~)?\x28\w+\x29[ ]*(\-)?\d") And !InStr(inValue,")(") And !InStr(inValue,"TEXT(",true) And !RegExMatch(inValue,"i)^[a-z]+\x28"))
-        inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
-    If (RegExMatch(inValue,"\~\x28[ ]*\w+[ ]*\|"))
-        inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
+    
+    ; If (inValue != Chr(34) "+" Chr(34) And inValue != "'+'")
+        ; inValue := StrReplace(inValue,"+"," + ")
+    ; inValue := StrReplace(StrReplace(inValue,"< <","<<"),"> >",">>")
+    ; If (!RegExMatch(inValue,"(\~)?\x28\w+\x29[ ]*(\-)?\d") And !InStr(inValue,")(") And !InStr(inValue,"TEXT(",true) And !RegExMatch(inValue,"i)^[a-z]+\x28"))
+        ; inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
+    ; If (RegExMatch(inValue,"\~\x28[ ]*\w+[ ]*\|"))
+        ; inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
+    
     inValue := RegExReplace(inValue,"[ ]{2,}"," ")
     inValue := Trim(inValue," `t")
     
@@ -429,20 +437,20 @@ value_cleanup(inValue) {
         Goto Finish
     }
     
-    newValue := eval(inValue)
-    If (IsInteger(newValue)) {
-        cType := "integer", cValue := newValue
-        Goto Finish
-    }
+    ; newValue := eval(inValue)
+    ; If (IsInteger(newValue)) {
+        ; cType := "integer", cValue := newValue
+        ; Goto Finish
+    ; }
     
-    If (RegExMatch(inValue,"i)\d+U\-\d+U")) {
-        newValue := StrReplace(inValue,"U","")
-        newValue := eval(newValue)
-        If (IsInteger(newValue)) {
-            cType := "integer", cValue := newValue
-            Goto Finish
-        }
-    }
+    ; If (RegExMatch(inValue,"i)\d+U\-\d+U")) {
+        ; newValue := StrReplace(inValue,"U","")
+        ; newValue := eval(newValue)
+        ; If (IsInteger(newValue)) {
+            ; cType := "integer", cValue := newValue
+            ; Goto Finish
+        ; }
+    ; }
     
     If (RegExMatch(inValue,"i)^\x28ULONG\x29([ ]*)?(0x[\dA-F]+)L?$",m)) {
         If (IsInteger(m.Value(2))) {
@@ -452,7 +460,7 @@ value_cleanup(inValue) {
         }
     }
     
-    If (RegExMatch(inValue,"^\x28LONG\x29(0x[\dA-Fa-f]+)$",m)) { ; convert to signed long
+    If (RegExMatch(inValue,"^\x28LONG\x29((0x)?[\dA-Fa-f]+)$",m)) { ; convert to signed long
         If (IsInteger(m.Value(1))) {
             inValue := Integer(m.Value(1)) - 2147483648 ; convert to unsigned long
             cType := "integer", cValue := inValue
@@ -460,7 +468,7 @@ value_cleanup(inValue) {
         }
     }
     
-    newValue := RegExReplace(inValue,"i)(U|L|UL|ULL|LL)$","")
+    newValue := RegExReplace(inValue,"^(\x28?(0x)?[a-fA-F0-9]+)(U|L|UL|ULL|LL|ui|UI)(8|16|32|64)?\x29?$","$1")
     If (newValue != inValue And IsInteger(newValue)) { ; type = numeric literal
         cType := "integer", cValue := Integer(newValue)
         Goto Finish
@@ -480,6 +488,18 @@ value_cleanup(inValue) {
     inValue := RegExReplace(inValue,"[ ]{2,}"," ") ; attempt to remove consecutive spaces, hopefully won't break anything
     inValue := Trim(inValue," `t")
     return {value:cValue, type:cType}
+}
+
+isExpr(sInput) {
+    If mathStr = "" Or InStr(mathStr,Chr(34))
+        return false
+    Loop Parse mathStr
+    {
+        c := Ord(A_LoopField)
+        If (c >= 65 And c <= 90) Or (c >= 97 And c <= 122)
+            return false ; actual string evaluated MUST be purely numerical with operators
+    }
+    return true
 }
 
 get_full_path(inFile) {

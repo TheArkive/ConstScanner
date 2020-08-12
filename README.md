@@ -1,5 +1,8 @@
 # C++ Constants Scanner/Database
 
+* Some incorrect constant values have been found.  As always please do your own double-checking.  I'll modify this README when i have reason to believe the full list is completely accurate.
+* This script is temporarily broken.  Reworking how values are parsed.
+
 Pick the folder of your API (where the headers are) and scan.  This program will catalog all constants so they can be easily referenced with search filters.  You can save the current database in a file and load it up later, and also manage multiple databases of multiple APIs.
 
 ### Currently included API databases:
