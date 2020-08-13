@@ -128,7 +128,7 @@ win32_header_parser() { ; total header files: 3,505
         ; prevList := curList
     ; }
     
-    ; reparse6()
+    reparse6()
     
     g["Total"].Value := "Scan complete: " const_list.Count " constants recorded."
 }
@@ -219,31 +219,31 @@ reparse1a(pass) { ; constants that point to a single constant / any type
     return list
 }
 
-; reparse6() {
-    ; t := 0
-    ; prog := progress2.New(0,const_list.Count,"title:Reparse 6")
-    ; prog.Update(A_Index,"Reparse 6 - removing duplicates with same value")
+reparse6() {
+    t := 0
+    prog := progress2.New(0,const_list.Count,"title:Reparse 6")
+    prog.Update(A_Index,"Reparse 6 - removing duplicates with same value")
     
-    ; For const, obj in const_list {
-        ; prog.Update(A_Index)
+    For const, obj in const_list {
+        prog.Update(A_Index)
         
-        ; dupe := obj.Has("dupe") ? obj["dupe"] : ""
-        ; If (dupe) {
-            ; cValue := obj["value"], newDupes := []
-            ; For i, obj2 in dupe {
-                ; If (cValue != obj2["value"])
-                    ; newDupes.push(obj2)
-            ; }
+        dupe := obj.Has("dupe") ? obj["dupe"] : ""
+        If (dupe) {
+            cValue := obj["value"], newDupes := []
+            For i, obj2 in dupe {
+                If (cValue != obj2["value"])
+                    newDupes.push(obj2)
+            }
             
-            ; If (newDupes.Length)
-                ; const_list[const]["dupe"] := newDupes, t++
-            ; Else
-                ; const_list[const].Delete("dupe")
-        ; }
-    ; }
+            If (newDupes.Length)
+                const_list[const]["dupe"] := newDupes, t++
+            Else
+                const_list[const].Delete("dupe")
+        }
+    }
     
-    ; prog.Close() ; msgbox "saved dupes: " t
-; }
+    prog.Close() ; msgbox "saved dupes: " t
+}
 
 
 ; reparse5(pass) {
