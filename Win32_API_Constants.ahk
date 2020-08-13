@@ -7,7 +7,8 @@
 ; Thanks to GroggyOtter on GitHub and to GaryFrost on autoIt
 ; forums for posting thier lists of Win32 API constants.
 
-Global g:="", doReset:=false, timerDelay := -500, unkFilter := false, dupeFilter := false
+Global g:="", c:="", prog:=""
+Global doReset:=false, timerDelay := -500, unkFilter := false, dupeFilter := false, constCalcs := ""
 Global const_list:=Map(), Settings:=Map(), IncludesList := Map()
 
 If (FileExist("settings.json")) {
@@ -18,12 +19,14 @@ If (FileExist("settings.json")) {
 load_gui()
 
 If (Settings["AutoLoad"] And FileExist(Settings["LastFile"])) { ; load data if Auto-Load enabled
+    UnlockGui(false)
     selFile := Settings["LastFile"]
     SplitPath selFile, fileName
     g["Total"].Value := "Loading data file.  Please Wait ..."
     fileData := FileRead(selFile)
     const_list := jxon_load(fileData)
     relist_const()
+    UnlockGui(true)
     g["File"].Value := "File: " fileName
 }
 
@@ -125,6 +128,7 @@ load_gui() {
     ctl.OnEvent("click","gui_events")
     
     g.Add("Text","xm y+5","Press CTRL+D to copy selected constant details.")
+    g.Add("Text","x+370 w350 Right vFile","Data File:")
     
     ctl := g.Add("Tab3","xm y+5 w1050 h142 vTabs",["Details","Duplicates"])
     
@@ -135,14 +139,12 @@ load_gui() {
     g.Add("Edit","xm y+5 w1050 r7 vDuplicates ReadOnly","")
     
     ctl.UseTab()
-    ctl := g.Add("Text","xm y+5 w700 vTotal","")
+    ctl := g.Add("Text","xm y+5 w1050 vTotal","")
     
     If (!FileExist("const_list.txt"))
         ctl.Text := "No list of constants."
     Else
         ctl.Text := "Please Wait ..."
-    
-    g.Add("Text","x+0 w350 Right vFile","Data File:")
     
     g.Show()
     g["NameFilter"].Focus()
@@ -161,7 +163,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
     ctl := g["ConstList"]
     ctl.Opt("-Redraw")
     ctl.Delete()
-    t := 0, u := 0, i := 0, s := 0, m := 0, r := 0, d := 0
+    t := 0, u := 0, i := 0, s := 0, m := 0, r := 0, d := 0, f := 0
     
     nFilter := !nFilter ? "*" : nFilter
     nFilter := StrReplace(nFilter,"*",".*")
@@ -172,7 +174,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
     vFilter := g["ValueEQ"].Value ? "^" vFilter "$" : vFilter
     
     eFilter := !eFilter ? "*" : eFilter
-    oopsStr := "(){}-+^$&%?.,<>" Chr(34)
+    oopsStr := "(){}[]-+^$&%?.,<>" Chr(34)
     Loop Parse oopsStr
     {
         ch := A_LoopField
@@ -233,6 +235,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
                 i := ((obj["type"] = "integer") ? i+1 : i)
                 s := ((obj["type"] = "string") ? s+1 : s)
                 m := ((obj["type"] = "macro") ? m+1 : m)
+                f := ((obj["type"] = "float") ? f+1 : f)
                 
                 d := dupe ? d+1 : d
             }
@@ -241,7 +244,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
     prog.close()
     
     ctl.Opt("+Redraw")
-    g["Total"].Text := "Total: " t " / Unk: " u " / Known: " t-u " / Int: " i " / Str: " s " / Macros: " m " / Dupes: " d
+    g["Total"].Text := "Total: " t " / Unk: " u " / Known: " t-u " / Int: " i " / Float: " f " / Str: " s " / Macros: " m " / Dupes: " d
     
     If (doReset) {
         doReset:=false
@@ -338,6 +341,10 @@ gui_events(ctl,info) {
         If (selFile)
             Settings["ApiPath"] := selFile, g["ApiPath"].Value := selFile
     } Else If (ctl.Name = "Scan") {
+        res := MsgBox("Start scan now?`r`n`r`nThis will destroy the current list and scan the specified C++ Source Path.","Confirm Scan",4)
+        If (res = "no")
+            return
+        
         g["NameFilter"].Value := ""
         g["NameBW"].Value := 0
         g["ValueFilter"].Value := ""

@@ -1,6 +1,8 @@
 win32_header_parser() { ; total header files: 3,505
-    root := Settings.Has("ApiPath") ? Settings["ApiPath"] : ""
-    If (!root) {
+    root := g["ApiPath"].Value
+    
+    ; root := Settings.Has("ApiPath") ? Settings["ApiPath"] : ""
+    If (!root Or !FileExist(root)) {
         Msgbox "Specify the path for the Win32 headers first."
         return
     }
@@ -63,6 +65,9 @@ win32_header_parser() { ; total header files: 3,505
                 Else
                     vConst := value_cleanup(constExp)
                 
+                ; If (constName = "DBFLAGS_DEFAULT")
+                    ; msgbox "DBFLAGS_DEFAULT = " vConst.value
+                
                 item := Map("exp",constExp,"comment",comment,"file",file,"line",i,"value",vConst.value,"type",vConst.type)
                 
                 If (!const_list.Has(constName))
@@ -81,13 +86,15 @@ win32_header_parser() { ; total header files: 3,505
     
     prog.Close()
     
-    ; prevList := ""
-    ; Loop {
-        ; curList := reparse1a(A_Index)
-        ; If (curList = prevList or curList = "")
-            ; Break
-        ; prevList := curList
-    ; }
+    prevList := ""
+    Loop {
+        curList := reparse1a(A_Index)
+        If (curList = prevList or curList = "")
+            Break
+        prevList := curList
+    }
+    
+    reparse2a()
     
     ; prevList := ""
     ; Loop { ; re-use until no replacements
@@ -126,6 +133,31 @@ win32_header_parser() { ; total header files: 3,505
     g["Total"].Value := "Scan complete: " const_list.Count " constants recorded."
 }
 
+reparse2a() {
+    Static q := Chr(34)
+    t := 0, i := 0
+    
+    For const, obj in const_list
+        If (obj["type"] = "expr")
+            i++
+    
+    prog := progress2.New(0,i,"title:Calculating...")
+    prog.Update(A_Index,"Reparse 2 - Pass #1")
+    
+    batchCmd := ""
+    For const, obj in const_list {
+        If (obj["type"] = "expr") {
+            t++
+            prog.Update(t,const,t " of " i)
+            obj["value"] := eval(obj["value"])
+            obj["type"] := "integer"
+            const_list[const] := obj
+        }
+    }
+    
+    prog.close()
+}
+
 reparse1a(pass) { ; constants that point to a single constant / any type
     t := 0, list := ""
     prog := progress2.New(0,const_list.Count,"title:Reparse 1")
@@ -135,15 +167,51 @@ reparse1a(pass) { ; constants that point to a single constant / any type
         prog.Update(A_Index)
         
         cValue := obj["value"], cType := obj["type"], cExp := obj["exp"]
+        If (InStr(cValue,"`t"))
+            Continue
         
         If (cType = "unknown") {
-            nObj := const_list[cValue]
-            nType := nObj["type"], nValue := nObj["value"]
+            searched := false, newPos := 1
             
-            obj["type"] := nType, obj["value"] := nValue 
-            const_list[const] := obj
+            r := RegExMatch(cValue,"([\w]+)",m), match := ""
+            If (IsObject(m))
+                match := m.Value(1)
             
-            t++, list .= const "`r`n"
+            While (r And match) {
+                searched := true ; a substitution ws actually made
+                
+                If (!IsInteger(match)) {
+                    If (!const_list.Has(match))
+                        Break
+                    
+                    prep := cValue
+                    mObj := const_list[match], mValue := mObj["value"]
+                    cValue := StrReplace(cValue,match,mValue,true,,1)
+                    newPos := m.Pos(1) + StrLen(mValue)
+                    ; Debug.Msg("match: `r`nr: " r "`r`nmatch: " match "`r`nprep: " prep "`r`ncValue: " cValue "`r`nPos/Len: " m.Pos(1) " / " m.Len(1))
+                } Else {
+                    newPos += m.Pos(1) + m.Len(1)
+                    ; Debug.Msg("int: " match "`r`nPos/Len: " m.Pos(1) " / " m.Len(1))
+                }
+                
+                ; Debug.Msg("const: " const "`r`nr: " r "`r`nmatch: " match "`r`nprep: " prep "`r`ncValue: " cValue "`r`n")
+                If (isMathExpr(cValue))
+                    Break
+                
+                r := RegExMatch(cValue,"([\w]+)",m,newPos), match := ""
+                If (IsObject(m))
+                    match := m.Value(1)
+                
+                ; Debug.Msg("const: " const "`r`nr: " r "`r`nmatch: " match "`r`nprep: " prep "`r`ncValue: " cValue "`r`n")
+            }
+            
+            If (searched And isMathExpr(cValue)) {
+                ; Debug.Msg(const " = " cValue)
+                obj["type"] := "expr", obj["value"] := cValue 
+                const_list[const] := obj
+                
+                t++, list .= const "`r`n"
+            }
         }
     }
     
@@ -395,6 +463,7 @@ reparse1a(pass) { ; constants that point to a single constant / any type
 
 ; 32-bit LONG max value = 2147483647
 ; 32-bit ULONG max value = 4294967296
+;                          4294967295
 ; 32-bit convert LONG to ULONG >>> add 2147483648
 
 ; 64-bit LONG LONG max value = 9223372036854775807
@@ -410,76 +479,64 @@ value_cleanup(inValue) {
         Goto Finish
     }
     
-    ; If (SubStr(inValue,1,1) = "(" And SubStr(inValue,-1) = ")" And !InStr(inValue,")(")) ; prune external parenthesis
-        ; inValue := SubStr(inValue,2,-1)
-    ; Else If (SubStr(inValue,1,2) = "((" And SubStr(inValue,-2) = "))")
-        ; inValue := SubStr(inValue,2,-1)
-    
-    ; inValue := StrReplace(StrReplace(inValue,"<<"," << "),">>"," >> ")
-    
-    inValue := RegExReplace(inValue,";$","")
-    
-    ; If (inValue != Chr(34) "+" Chr(34) And inValue != "'+'")
-        ; inValue := StrReplace(inValue,"+"," + ")
-    ; inValue := StrReplace(StrReplace(inValue,"< <","<<"),"> >",">>")
-    ; If (!RegExMatch(inValue,"(\~)?\x28\w+\x29[ ]*(\-)?\d") And !InStr(inValue,")(") And !InStr(inValue,"TEXT(",true) And !RegExMatch(inValue,"i)^[a-z]+\x28"))
-        ; inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
-    ; If (RegExMatch(inValue,"\~\x28[ ]*\w+[ ]*\|"))
-        ; inValue := StrReplace(StrReplace(inValue,"("," ( "),")"," ) ")
-    
-    inValue := RegExReplace(inValue,"[ ]{2,}"," ")
-    inValue := Trim(inValue," `t")
-    
-    cValue := inValue ; save cValue without outside (parenthesis)
+    inValue := Trim(RegExReplace(inValue,";$","")," `t")
+    cValue := inValue ; init cValue
     
     If (IsInteger(inValue)) { ; type = integer / no conversion needed
         cType := "integer", cValue := Integer(inValue)
         Goto Finish
     }
     
-    ; newValue := eval(inValue)
-    ; If (IsInteger(newValue)) {
-        ; cType := "integer", cValue := newValue
-        ; Goto Finish
-    ; }
+    If (RegExMatch(inValue,"\x28?\d+U\-\d+U\x29?")) {
+        newValue := StrReplace(inValue,"U","")
+        cType := "expr", cValue := newValue
+        Goto Finish
+    }
     
-    ; If (RegExMatch(inValue,"i)\d+U\-\d+U")) {
-        ; newValue := StrReplace(inValue,"U","")
-        ; newValue := eval(newValue)
-        ; If (IsInteger(newValue)) {
-            ; cType := "integer", cValue := newValue
+    ; If (RegExMatch(inValue,"i)^\x28ULONG\x29([ ]*)?(0x[\dA-F]+)L?$",m)) {
+        ; If (IsInteger(m.Value(2))) {
+            ; inValue := Integer(m.Value(2)) + 2147483648 ; convert to unsigned long
+            ; cType := "integer", cValue := inValue
             ; Goto Finish
         ; }
     ; }
     
-    If (RegExMatch(inValue,"i)^\x28ULONG\x29([ ]*)?(0x[\dA-F]+)L?$",m)) {
-        If (IsInteger(m.Value(2))) {
-            inValue := Integer(m.Value(2)) + 2147483648 ; convert to unsigned long
-            cType := "integer", cValue := inValue
-            Goto Finish
-        }
-    }
-    
-    If (RegExMatch(inValue,"^\x28LONG\x29((0x)?[\dA-Fa-f]+)$",m)) { ; convert to signed long
+    If (RegExMatch(inValue,"^\x28?((0x)?[\-0-9A-Fa-f ]+)(L|l|LL)?\x29?$",m)) {
         If (IsInteger(m.Value(1))) {
-            inValue := Integer(m.Value(1)) - 2147483648 ; convert to unsigned long
-            cType := "integer", cValue := inValue
+            cType := "integer", cValue := Integer(m.Value(1))
             Goto Finish
         }
     }
     
-    newValue := RegExReplace(inValue,"^(\x28?(0x)?[a-fA-F0-9]+)(U|L|UL|ULL|LL|ui|UI)(8|16|32|64)?\x29?$","$1")
+    If (RegExMatch(inValue,"^\x28?\x28ULONG\x29 ?((0x)?[0-9A-Fa-f]+)\x29?$",m)) { ; simple ULONG conversion
+        If (IsInteger(m.Value(1))) {
+            cType := "integer", cValue := Integer(m.Value(1))
+            Goto Finish
+        }
+    }
+    
+    newValue := RegExReplace(inValue,"^\x28? ?((0x)?\-?[a-fA-F0-9]+)(U|L|UL|ULL|LL|ui|ul|UI)(8|16|32|64)? ?\x29?$","$1")
     If (newValue != inValue And IsInteger(newValue)) { ; type = numeric literal
         cType := "integer", cValue := Integer(newValue)
         Goto Finish
     }
     
-    If (SubStr(inValue,1,1) = q And SubStr(inValue,-1) = q And !InStr(inValue," + ")) { ; char string
+    If (RegExMatch(inValue,"^\x28? ?(\-?[0-9\.]+)(f)? ?\x29?$",m)) {
+        cType := "float", cValue := m.Value(1)
+        Goto Finish
+    }
+    
+    If (RegExMatch(inValue,"^\{.*\}$")) {
+        cType := "array", cValue := inValue
+        Goto Finish
+    }
+    
+    If (RegExMatch(inValue,"^\x28? ?L?\'.+?\' ?\x29?$")) {
         cType := "string", cValue := inValue
         Goto Finish
     }
     
-    If (SubStr(inValue,1,2) = "L" q And SubStr(inValue,-1) = q And !InStr(inValue," + ")) { ; wchar_t string
+    If (RegExMatch(inValue,"^\x28? ?L?\" q ".*\" q " ?\x29?$")) { ; wchar_t string
         cType := "string", cValue := inValue
         Goto Finish
     }
@@ -490,13 +547,13 @@ value_cleanup(inValue) {
     return {value:cValue, type:cType}
 }
 
-isExpr(sInput) {
+isMathExpr(mathStr) {
     If mathStr = "" Or InStr(mathStr,Chr(34))
         return false
     Loop Parse mathStr
     {
         c := Ord(A_LoopField)
-        If (c >= 65 And c <= 90) Or (c >= 97 And c <= 122)
+        If ((c >= 65 And c <= 90) Or (c >= 97 And c <= 122)) And (c != 88)
             return false ; actual string evaluated MUST be purely numerical with operators
     }
     return true
