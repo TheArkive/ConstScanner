@@ -9,7 +9,7 @@
 
 Global g:="", c:="", prog:=""
 Global doReset:=false, timerDelay := -500, unkFilter := false, dupeFilter := false, constCalcs := ""
-Global const_list:=Map(), Settings:=Map(), IncludesList := Map()
+Global const_list:=Map(), Settings:=Map(), IncludesList := Map(), curList := Map()
 
 If (FileExist("settings.json")) {
     sText := FileRead("settings.json")
@@ -81,10 +81,11 @@ UnlockGui(bool) {
     g["FileFilter"].Enabled := bool, g["FileFilterClear"].Enabled := bool
     g["Reset"].Enabled := bool, g["Unk"].Enabled := bool, g["Dupe"].Enabled := bool, g["DupeIntOnly"].Enabled := bool
     g["ConstList"].Enabled := bool, g["Tabs"].Enabled := bool
+    g["Copy"].Enabled := bool, g["CopyType"].Enabled := bool
 }
 
 load_gui() {
-    g := Gui.New("-DPIScale +OwnDialogs","Win32 API Constants")
+    g := Gui.New("-DPIScale +OwnDialogs","C++ Constants Scanner")
     g.OnEvent("close","close_gui")
     g.SetFont("s10","Consolas")
     
@@ -118,10 +119,14 @@ load_gui() {
     g.Add("ComboBox","yp-4 x+2 w450 vFileFilter").OnEvent("change","gui_events")
     g.Add("Button","x+0 hp vFileFilterClear","X").OnEvent("click","gui_events")
     
-    g.Add("Button","Section x+155 w50 hp vReset","Reset").OnEvent("click","gui_events")
+    g.Add("Button","Section x+54 w50 hp vReset","Reset").OnEvent("click","gui_events")
     g.Add("Button","x+0 hp vUnk","Unknown").OnEvent("click","gui_events")
     g.Add("Button","x+0 hp vDupe","Dupe").OnEvent("click","gui_events")
     g.Add("CheckBox","x+5 yp hp vDupeIntOnly","Dupe int only").OnEvent("click","gui_events")
+    
+    g.Add("Button","x+10 h23 vCopy","Copy List").OnEvent("click","gui_events")
+    ctl := g.Add("DropDownList","x+0 w114 vCopyType",["var := value","var only"])
+    ctl.Value := 1
     
     ctl := g.Add("ListView","xm y+5 w1050 h300 vConstList",["Name","Value","Expression","File"])
     ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,195), ctl.ModifyCol(4,200)
@@ -160,6 +165,7 @@ close_gui(*) {
 }
 
 relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
+    curList := Map()
     ctl := g["ConstList"]
     ctl.Opt("-Redraw")
     ctl.Delete()
@@ -194,7 +200,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
             If (obj["type"] = "unknown") {
                 dupe := (obj.Has("dupe")) ? true : false
                 d := dupe ? d+1 : d
-                ctl.Add(,const,value,expr,file), t++, u++
+                ctl.Add(,const,value,expr,file), t++, u++, curList[const] := obj
             }
         }
         unkFilter := false
@@ -205,14 +211,14 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
             If (obj.Has("dupe")) {
                 d++
                 If cType = "integer" ; {
-                    ctl.Add(,const,value,expr,file), i++, t++
+                    ctl.Add(,const,value,expr,file), i++, t++, curList[const] := obj
                 If (!g["DupeIntOnly"].Value) {
                     If cType = "string"
-                        ctl.Add(,const,value,expr,file), s++, t++
+                        ctl.Add(,const,value,expr,file), s++, t++, curList[const] := obj
                     Else If cType = "unknown"
-                        ctl.Add(,const,value,expr,file), u++, t++
+                        ctl.Add(,const,value,expr,file), u++, t++, curList[const] := obj
                     Else If cType = "macro"
-                        ctl.Add(,const,value,expr,file), m++, t++
+                        ctl.Add(,const,value,expr,file), m++, t++, curList[const] := obj
                     ; Else If cType = "struct"
                         ; ctl.Add(,const,value,expr), r++, t++
                 }
@@ -230,6 +236,7 @@ relist_const(nFilter:="",vFilter:="",eFilter:="",fFilter:="") {
                 doList := true
             
             If (doList) {
+                curList[const] := obj
                 ctl.Add(,const,value,expr,file), t++
                 u := ((obj["type"] = "unknown") ? u+1 : u)
                 i := ((obj["type"] = "integer") ? i+1 : i)
@@ -385,6 +392,18 @@ gui_events(ctl,info) {
             MsgBox "Data file successfully saved."
             UnlockGui(true)
         }
+    } Else If (ctl.Name = "Copy") {
+        If (curList.Count) {
+            txt := "", ct := g["CopyType"].text
+            For const, obj in curList {
+                txt .= "`r`n" const
+                If (ct = "var := value")
+                    txt .= " := " obj["value"]
+            }
+            A_Clipboard := Trim(txt,"`r`n")
+            
+            msgbox "List copied to clipboard."
+        }
     }
 }
 
@@ -428,4 +447,12 @@ eval(mathStr) { ; chr 65-90 or 97-122
 
 ^d::{
     A_Clipboard := g["Details"].Value
+}
+
+^+d::{
+    n := g["ConstList"].GetNext()
+    If (n) {
+        t := g["ConstList"].GetText(n)
+        A_Clipboard := t
+    }
 }
