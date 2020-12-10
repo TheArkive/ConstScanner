@@ -107,7 +107,7 @@ UnlockGui(bool) {
 }
 
 load_gui() {
-    g := Gui.New("-DPIScale +OwnDialogs +Resize +MinSize1076x588","C++ Constants Scanner")
+    g := Gui.New("+OwnDialogs +Resize +MinSize1076x588","C++ Constants Scanner")
     g.OnEvent("close","close_gui"), g.OnEvent("size","size_gui")
     g.SetFont("s10","Consolas")
     
