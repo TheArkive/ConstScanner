@@ -365,7 +365,12 @@ get_full_path(inFile) {
     fullPath := ""
     root := g["ApiPath"].Text
     SplitPath root, rootFile, rootDir
-    other_dirs := Settings["dirs"].Has(rootFile) ? Settings["dirs"][rootFile] : []
+    d := StrReplace(root,"\","|")
+    
+    If Settings.Has("dirs") And Settings["dirs"].Has(d)
+        other_dirs := Settings["dirs"][d]["files"]
+    Else other_dirs := []
+    
     If (!FileExist(rootDir))
         return ""
     
@@ -379,10 +384,11 @@ get_full_path(inFile) {
     
     If (!fullPath) {
         done := false
-        For i, dir in other_dirs {
+        For i, other_file in other_dirs {
             If (done)
                 Break
             
+            SplitPath other_file, file, dir
             Loop Files dir "\*", "R"
             {
                 If (!fullPath And InStr(A_LoopFileFullPath,"\" inFile)) {

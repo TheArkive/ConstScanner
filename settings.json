@@ -1,14 +1,28 @@
 {
-    "ApiPath": "D:\\DEV\\msys2\\mingw64\\x86_64-w64-mingw32\\include\\windows.h",
+    "ApiPath": "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\Windows.h",
+    "Arch": 1,
     "AutoLoad": 0,
-    "LastFile": "D:\\Drive\\UserData\\DEV\\AHK\\Win32-API-Const\\data\\win-mingw64.data",
-    "baseFiles": [],
+    "LastFile": "D:\\Drive\\UserData\\DEV\\AHK\\Win32-API-Const\\data\\win10.data",
+    "baseFiles": [
+        "D:\\DEV\\msys2\\mingw64\\x86_64-w64-mingw32\\include\\windows.h",
+        "D:\\DEV\\msys2\\mingw64\\x86_64-w64-mingw32\\include\\commctrl.h",
+        "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\Windows.h"
+    ],
     "dirs": {
-        "um": [],
-        "windows.h": [
-            "asdf1",
-            "asdf2"
-        ]
+        "D:|DEV|Win_10_SDK|Include|10.0.19041.0|um|Windows.h": {
+            "all": 1,
+            "files": [
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\shared\\winapifamily.h"
+            ]
+        },
+        "D:|DEV|msys2|mingw64|x86_64-w64-mingw32|include|commctrl.h": {
+            "all": 0,
+            "files": []
+        },
+        "D:|DEV|msys2|mingw64|x86_64-w64-mingw32|include|windows.h": {
+            "all": 0,
+            "files": []
+        }
     },
     "x64compiler": "g++",
     "x86compiler": ""

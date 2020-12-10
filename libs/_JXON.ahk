@@ -221,5 +221,16 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 			return q obj q
 		}
 	}
+    
+    escape_string(s) {
+        s := StrReplace(s,"`t","\t")
+        s := StrReplace(s,"`r","\r")
+        s := StrReplace(s,"`n","\n")
+        s := StrReplace(s,"`b","\b")
+        s := StrReplace(s,"`f","\f")
+        s := StrReplace(s,"\","\\")
+        s := StrReplace(s,"/","\/")
+        s := StrReplace(s,q,"\" q)
+    }
 }
 
