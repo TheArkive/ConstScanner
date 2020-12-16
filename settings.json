@@ -1,5 +1,5 @@
 {
-    "ApiPath": "D:\\DEV\\msys2\\mingw64\\x86_64-w64-mingw32\\include\\windows.h",
+    "ApiPath": "",
     "Arch": 1,
     "AutoLoad": 0,
     "CheckDupe": 0,
@@ -10,16 +10,8 @@
     "CheckString": 1,
     "CheckUnknown": 1,
     "FileFilter": "",
-    "LastFile": "D:\\Drive\\UserData\\DEV\\AHK\\Win32-API-Const\\data\\win10.data",
-    "baseFiles": [
-        "D:\\DEV\\_src\\scintilla\\include\\Scintilla.h"
-    ],
-    "dirs": {
-        "D:|DEV|msys2|mingw64|x86_64-w64-mingw32|include|windows.h": {
-            "all": 1,
-            "files": []
-        }
-    },
+    "LastFile": "",
+    "baseFiles": [],
     "x64compiler": "g++",
     "x86compiler": ""
 }
