@@ -28,7 +28,7 @@
 ;		> closes the progress bar
 ;
 ; ============================================================================================
-; Options on create.  Comma separated string including zero or more of the below options.
+; sOptions on create.  Comma separated string including zero or more of the below options.
 ; MainText / SubText are the text above / below the progress bar.
 ;
 ;	fontFace:font_str
@@ -104,74 +104,28 @@
 ; ============================================================================================
 
 class progress2 {
+    rangeStart := 0, rangeEnd := 100
+    fontFace := "Verdana", fontSize := 8, mainTextSize := 10
+    mainTextAlign := "left", subTextAlign := "left"
+    mainText := " ", subText := " ", title := "", start := 0, modal := false, parent := 0, width := 300
+    x := "", y := "", mainTextHwnd := 0, subTextHwnd := 0
+    
 	__New(rangeStart := 0, rangeEnd := 100, sOptions := "") {
-		; ====================================================
-		; default options
-		; ====================================================
 		this.rangeStart := rangeStart, this.rangeEnd := rangeEnd
 		
-		this.fontFace := "Verdana", this.fontSize := 8
-		this.mainTextSize := this.fontSize + 2
-		this.mainTextAlign := "left", this.subTextAlign := "left"
-		
-		this.mainText := " ", this.subText := " ", this.title := ""
-		
-		this.start := 0
-		this.modal := false, this.hParent := 0
-		
-		this.width := 300
-		this.x := "", this.y := ""
-		
-		this.mainTextHwnd := 0, this.subTextHwnd := 0
-		
-		; ====================================================
-		; read user defined options
-		; ====================================================
 		optArr := StrSplit(sOptions,Chr(44))
-		Loop optArr.Length {
-			valArr := StrSplit(optArr[A_Index],":")
-			curOpt := valArr.Has(1) ? valArr[1] : ""
-            curVal := valArr.Has(2) ? valArr[2] : ""
-			If (!curOpt)
-                Continue
-            
-			If (curOpt = "fontFace")
-				this.fontFace := curVal ? curVal : this.fontFace
-			Else If (curOpt = "fontSize")
-				this.fontSize := curVal ? curVal : this.fontSize
-			Else If (curOpt = "mainText")
-				this.mainText := curVal
-			Else If (curOpt = "subText")
-				this.subText := curVal
-			Else If (curOpt = "start")
-				this.start := curVal ? curVal : this.start
-			Else if (curOpt = "title")
-				this.title := curVal
-			Else If (curOpt = "parent")
-				this.hParent := curVal ? curVal : 0
-			Else If (curOpt = "modal")
-				this.hParent := curVal ? curVal : 0, this.modal := curVal ? true : false
-			Else if (curOpt = "w")
-				this.width := curVal ? curVal : 300
-			Else If (curOpt = "mainTextSize")
-				this.mainTextSize := curVal ? curVal : this.mainTextSize
-			Else If (curOpt = "mainTextAlign")
-				this.mainTextAlign := curVal ? curVal : this.mainTextAlign
-			Else if (curOpt = "subTextAlign")
-				this.subTextAlign := curVal ? curVal : this.subTextAlign
-			Else If (curOpt = "x")
-				this.x := curVal ? curVal : ""
-			Else If (curOpt = "y")
-				this.y := curVal ? curVal : ""
-		}
-		
+        Loop optArr.Length {
+            valArr := StrSplit(optArr[A_Index],":")
+            this.%valArr[1]% := valArr[2]
+        }
+        
 		this.ShowProgress()
 	}
 	ShowProgress() {
         x := "", y := ""
 		showTitle := this.title ? "" : " -Caption +0x40000" ; 0x40000 = thick border
 		range := this.rangeStart "-" this.rangeEnd
-		progress2_gui := Gui.New("AlwaysOnTop -DPIScale -SysMenu" showTitle,this.title)
+		progress2_gui := Gui.New("AlwaysOnTop -SysMenu " showTitle,this.title)
 		
 		progress2_gui.SetFont("s" this.mainTextSize,this.fontFace)
 		align := this.mainTextAlign
@@ -179,42 +133,30 @@ class progress2 {
 		this.mainTextHwnd := mT.hwnd
 		
         progress2_gui.SetFont("s" this.fontSize)
-		prog := progress2_gui.AddProgress("vProgBar y+m xp w" this.width " Range" range,this.start)
-		this.progHwnd := prog.hwnd
+		prog_ctl := progress2_gui.Add("Progress","vProgBar y+m xp w" this.width " Range" range,this.start)
+		this.progHwnd := prog_ctl.hwnd
 		
 		align := this.subTextAlign
 		sT := progress2_gui.AddText("vSubText " align " w" this.width,this.subText)
 		this.subTextHwnd := sT.hwnd
 		
-		If (this.hParent) {
-			WinGetPos pX, pY, pW, pH, "ahk_id " this.hParent
+		If (this.parent) {
+			WinGetPos pX, pY, pW, pH, "ahk_id " this.parent
 			Cx := pX + (pW/2), Cy := pY + (pH/2)
-			
-			borderW := SysGet(32)
-			captionH := SysGet(4)
-			captionH := this.title ? captionH : 0
-			borderH := SysGet(7)
-			
-			prog.GetPos(,,progW:=0,h:=0)
-			mT.GetPos(,,mTh:=0)
-			sT.GetPos(,,sTh:=0)
-			progress2_gui.GetPos(,,gH:=0)
-			w := progW + (progress2_gui.MarginX * 2) + (borderW * 2)
-			h := gH + captionH + (borderH * 2) + mTh + sTh + (progress2_gui.MarginY * 4)
-			x := Cx - (w/2), y := Cy - (h/2)
-			progress2_gui.Opt("+Owner" this.hParent)
+			progress2_gui.Opt("+Owner" this.parent)
 			
 			If (this.modal)
-				WinSetEnabled 0, "ahk_id " this.hParent
+				WinSetEnabled 0, "ahk_id " this.parent
 		}
-		If (this.x != "" And this.y != "")
-			x := this.x, y := this.y
-		
-		coords := ""
-		If (x And y)
-			coords := "x" x " y" y
-		
-		progress2_gui.Show(coords " NA NoActivate")
+		progress2_gui.Show(" NA NoActivate Hide") ; coords ??
+        progress2_gui.GetPos(,,w,h)
+        
+        If (this.x = "" Or this.y = "") And this.parent
+            x := Cx - (w/2), y := Cy - (h/2)
+        
+        progress2_gui.Show("x" x " y" y)
+        
+        this.x := x, this.y := y
 		this.guiHwnd := progress2_gui.hwnd
 		this.gui := progress2_gui
 	}
@@ -231,9 +173,9 @@ class progress2 {
 			this.gui.Destroy()
 		
 		If (this.modal)
-			WinSetEnabled 0, "ahk_id " this.hParent
-		If (this.hParent)
-			WinActivate "ahk_id " this.hParent
+			WinSetEnabled 0, "ahk_id " this.parent
+		If (this.parent)
+			WinActivate "ahk_id " this.parent
 		
 		this.__Delete()
 	}

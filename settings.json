@@ -1,8 +1,16 @@
 {
-    "ApiPath": "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\Windows.h",
+    "ApiPath": "D:\\DEV\\_src\\scintilla\\include\\Scintilla.h",
     "Arch": 1,
     "AutoLoad": 0,
-    "LastFile": "D:\\Drive\\UserData\\DEV\\AHK\\Win32-API-Const\\data\\win10.data",
+    "CheckDupe": 0,
+    "CheckExpr": 1,
+    "CheckFloat": 1,
+    "CheckInteger": 1,
+    "CheckOther": 1,
+    "CheckString": 1,
+    "CheckUnknown": 1,
+    "FileFilter": "",
+    "LastFile": "D:\\Drive\\UserData\\DEV\\AHK\\Win32-API-Const\\data\\scintilla.data",
     "baseFiles": [
         "D:\\DEV\\msys2\\mingw64\\x86_64-w64-mingw32\\include\\windows.h",
         "D:\\DEV\\msys2\\mingw64\\x86_64-w64-mingw32\\include\\commctrl.h",
@@ -12,7 +20,21 @@
         "D:|DEV|Win_10_SDK|Include|10.0.19041.0|um|Windows.h": {
             "all": 1,
             "files": [
-                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\shared\\winapifamily.h"
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\shared\\winapifamily.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\MsXml6.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\msxml6did.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\*gdi*.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\WinUser.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\d2d*.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\commctrl.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\d3d.h",
+                "D:\\DEV\\Win_10_SDK\\Include\\10.0.19041.0\\um\\ddraw.h"
+            ]
+        },
+        "D:|DEV|_src|scintilla|include|Scintilla.h": {
+            "all": 0,
+            "files": [
+                "D:\\DEV\\_src\\scintilla\\include\\SciLexer.h"
             ]
         },
         "D:|DEV|msys2|mingw64|x86_64-w64-mingw32|include|commctrl.h": {

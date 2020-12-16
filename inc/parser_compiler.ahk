@@ -204,7 +204,7 @@ resolve_const(pass) { ; constants that point to a single constant / any type
                     newPos += m.Pos(1) + m.Len(1)
                 }
                 
-                If (isMathExpr(cValue))
+                If (eval(cValue,true))
                     Break
                 
                 r := RegExMatch(cValue,"([\w]+)",m,newPos), match := ""
@@ -212,7 +212,7 @@ resolve_const(pass) { ; constants that point to a single constant / any type
                     match := m.Value(1)
             }
             
-            If (searched And isMathExpr(cValue)) {
+            If (searched And eval(cValue,true)) {
                 obj["type"] := "expr", obj["value"] := cValue 
                 const_list[const] := obj
                 

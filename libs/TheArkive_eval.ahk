@@ -10,7 +10,7 @@
 ; msgbox eval("!1-2+3*-4**5<<6>>7&8^9|10+~11 - -0x12") "`r`n" ; This illustrates complex order of operations without nested parenthesis.
            ; . !1-2+3*-4**5<<6>>7&8^9|10+~11 - -0x12
 
-; msgbox eval("!1-2+3*-4**5<<6>>7&8^9|10+~11 - -~-0x12") "`r`n" ; Trying to make it is silly-complex as possible.
+; msgbox eval("!1-2+3*-4**5<<6>>7&8^9|10+~11 - -~-0x12") "`r`n" ; Trying to make it as silly-complex as possible.
            ; . !1-2+3*-4**5<<6>>7&8^9|10+~11 - -~-0x12
 
 ; msgbox eval("-~!-3") "`r`n" ; crazy but possible valid expression
@@ -19,13 +19,15 @@
 ; msgbox eval("2 ** -3 ** -~-3") "`r`n" ; another crazy valid expression that's difficult to parse.
            ; . 2 ** -3 ** -~-3
 
-; msgbox eval("2 + -3 ** 3") "`r`n"
+; msgbox eval("2 + -3 ** 3") "`r`n" ; simple but tricky
            ; . 2 + -3 ** 3
 
+; msgbox eval("2 ** -3 * 4 + 5 * 6 // 7 - 8") "`r`n" ; Still simple, but slightly more tricky.
+           ; . 2 ** -3 * 4 + 5 * 6 // 7 - 8
+
 
 ; ======================================================================================
 ; ======================================================================================
-
 
 
 
