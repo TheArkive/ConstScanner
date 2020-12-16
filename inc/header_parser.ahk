@@ -147,7 +147,7 @@ header_parser() {
                 constExp := RegExReplace(Trim(constExp," `t"),"[ ]{2,}"," ")
                 If (InStr(constExp,"//") = 1) ; this is a comment, not a value/expression!
                     constExp := ""
-                 
+                
                 cType := "Unknown"
                 If RegExMatch(constExp,"^TEXT\x28.*([\" q "|']+).*\x29$") Or RegExMatch(constExp,"^\x28? ?L\" q)
                     cType := "String"
@@ -160,6 +160,7 @@ header_parser() {
                                        Or (InStr(constExp,"enum ") = 1 Or InStr(constExp,"struct ") = 1)
                                        Or RegExMatch(constExp,"i)^[A-F0-9]{8}\-[A-F0-9]{4}\-[A-F0-9]{4}\-[A-F0-9]{4}\-[A-F0-9]{12}$")       ; 47065EDC-D7FE-4B03-919C-C4A50B749605
                                        Or RegExMatch(constExp,"^[a-zA-Z_]+\x28.*([\" q "|#|\,]+).*\x29$")                                   ; function-like with invalid chars / NOT expr
+                                       Or (constExp = "(&" constName ")")
                     cType := "Other"
                 Else If InStr(constExp,Chr(34)) Or InStr(constExp,"'")
                     cType := "String"
@@ -174,6 +175,9 @@ header_parser() {
                         const_list[constName]["dupe"].Push(item)
                     }
                 }
+                
+                ; If InStr(constName,"stat32i64") Or InStr(constName,"stati64")
+                    ; Debug.Msg(constName "`r`n" jxon_dump(item,4))
             }
         }
         
@@ -290,17 +294,24 @@ do_subs(obj,const:="",commit:=true) {
     Static typs := "(?:UI8|UI16|UI32|UI64|I64|I32|I16|I8|ULL|UI|LL|UL|U|L|I)"
     
     Static win32_typ_fnc := "_ASF_HRESULT_TYPEDEF_|_HRESULT_TYPEDEF_|AUDCLNT_ERR|AUDCLNT_SUCCESS|MAKE_AVIERR|MAKE_DDHRESULT|MAKE_D3DHRESULT|D3DTS_WORLDMATRIX|"
-                          . "MAKE_DMHRESULTERROR|MAKE_DSHRESULT|_NDIS_ERROR_TYPEDEF_|DBDAOERR"
-    cValue := obj["value"]
+                          . "MAKE_DMHRESULTERROR|MAKE_DSHRESULT|_NDIS_ERROR_TYPEDEF_|DBDAOERR|__MSABI_LONG"
     
+    cValue := obj["value"]
+    cValue := RegExReplace(cValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1") ; func type conversion
     While RegExMatch(cValue,"\x28 ?(" casting ")(?:_PTR)? ?\x29",_m) ; remove initial type casting
         cValue := StrReplace(cValue,_m.Value(0),"")
-    cValue := RegExReplace(cValue,"^(?:" win32_typ_fnc ")\x28 ?(.*?) ?\x29$","$1")
+    cValue := number_cleanup(cValue) ; try to clean up number formats, and convert hex to base-10
+    
     newPos := 1
     
     Static rgx := "([_A-Z][\w_]+\x28?)" ; "((?<!\d)[A-Z_][\w]+)"
     r := RegExMatch(cValue,"i)" rgx,m), match := ""
     (IsObject(m) And m.Count()) ? match := m.Value(1) : "" ; attempt to capture first match
+    
+    ; =============================================
+    ; If InStr(const,"AP_") = 1
+        ; Debug.Msg(const ": " const_list[const]["value"] "`r`nmatch: " match "`r`ncValue: " cValue)
+    ; =============================================
     
     While (!eval(cValue,true) And IsObject(m)) { ; require a match for looping
         dupe_arr := [], prep := cValue, mValue := "" ; searched := true
@@ -315,17 +326,19 @@ do_subs(obj,const:="",commit:=true) {
             If (commit)
                 newObj := const_list[match], (newObj.Has("dupe")) ? (dupe_arr := newObj["dupe"]) : "" ; lay off critical for now
             Else newObj := Map("type","")
+            
+            mValue := RegExReplace(mValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1")   ; func type conversion
+            While RegExMatch(mValue,"\x28 ?(" casting ") ?\x29",_m)                         ; remove type casting
+                mValue := StrReplace(mValue,_m.Value(0),"")
+            mValue := number_cleanup(mValue)
         }
-        
-        While RegExMatch(mValue,"\x28 ?(" casting ") ?\x29",_m) ; remove subsequent type casting after substitutions
-            mValue := StrReplace(mValue,_m.Value(0),"")
         
         If (newObj["type"] = "Other") Or (newObj["type"] = "String") { ; don't do substitutions with "Other" type
             obj["type"] := newObj["type"]
             return obj
         }
         
-        If const_list.Has(mValue) And (const_list[mValue]["value"]=const) { ; infinite loop, 2 vars reference themselves
+        If (const_list[const]["value"] = mValue) { ; infinite loop, 2 vars reference themselves
             obj["type"] := "Other"
             return obj
         }
@@ -334,8 +347,8 @@ do_subs(obj,const:="",commit:=true) {
         cValue := StrReplace(cValue,match,mValue,false,,1) ; the actual substitution within the expression
         
         ; =================================
-        ; If const = "_Reserved_"
-            ; Debug.Msg(const ": " cValue "`r`n    match: " match "`r`n    mValue: " mValue "`r`n")
+        ; If InStr(const,"AP_") = 1
+            ; Debug.Msg(const ": " const_list[const]["value"] "`r`n    match: " match "`r`n    mValue: " mValue "`r`ncValue: " cValue "`r`n")
         ; =================================
         
         If (commit) {
@@ -356,13 +369,11 @@ do_subs(obj,const:="",commit:=true) {
         ; =================================
     }
     
-    obj["subs"] := cValue ; record the furthest progress of substitutions
-    
-    cValue := value_cleanup(cValue)
+    obj["value"] := cValue ; record the furthest progress of substitutions
     
     If (eval(cValue,true)) {
         cValue := RegExReplace(cValue,"(!|~) +","$1") ; remove spaces between ! or ~ and expression
-        obj["subs"] := cValue
+        ; obj["subs"] := cValue
         cValue := eval(cValue)
         
         If IsInteger(cValue)
@@ -415,10 +426,11 @@ checkDupeConst(main,dupe) {
         return false
 }
 
-value_cleanup(inValue) {
+number_cleanup(inValue) {
     Static q := Chr(34)
     Static typs    := "(?:UI8|UI16|UI32|UI64|I64|I32|I16|I8|ULL|UI|LL|UL|U|L|I)"
     Static num     := "\-?(?:\d+\.\d+(?:e\+\d+|e\-\d+|e\d+)?f?|0x[\dA-F]+|\d+)"
+    Static hex     := "\-?0x[\dA-F]+"
     
     inValue := Trim(RegExReplace(inValue,";$","")," ")
     inValue := StrReplace(inValue,"`t","")
@@ -435,5 +447,13 @@ value_cleanup(inValue) {
         cValue := StrReplace(cValue,m.Value(0),m.Value(1),,,1) ; replace hex with decimal
     }
     
+    While RegExMatch(cValue,"i)(" hex ")",n) {
+        If !IsObject(n) Or (!n.Count())
+            Break
+        
+        match := n.Value(1)
+        _num :=  (IsInteger(match)) ? Integer(match) : (IsFloat(match)) ? Float(match) : match
+        cValue := StrReplace(cValue,match,_num,,,1) ; replace hex with decimal
+    }
     return cValue
 }

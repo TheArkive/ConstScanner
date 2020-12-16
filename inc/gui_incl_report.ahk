@@ -1,6 +1,7 @@
 incl_report() {
     g3 := Gui.New("-MinimizeBox -MaximizeBox +Owner" g.hwnd,"#INCLUDES Report")
     g3.OnEvent("close","g3_close")
+    g3.OnEvent("escape","g3_escape")
     
     g3.Add("Edit","xm w370 vFilter").OnEvent("change","gui_events3")
     g3.Add("Button","x+0 w30 vClearFilter","X").OnEvent("click","gui_events3")
@@ -15,8 +16,14 @@ incl_report() {
     WinSetEnabled False, g.hwnd
 }
 
-g3_close(*) {
+g3_close(_gui) {
+    WinActivate "ahk_id " g.hwnd
     WinSetEnabled True, g.hwnd
+}
+
+g3_escape(_gui) {
+    g3_close(_gui)
+    g3.Destroy()
 }
 
 gui_events3(ctl,info) {

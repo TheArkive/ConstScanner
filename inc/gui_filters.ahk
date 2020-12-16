@@ -2,6 +2,8 @@ Global filter_gui
 
 load_filters() {
     filter_gui := Gui.New("-MinimizeBox -MaximizeBox +Owner" g.hwnd,"More Filter Options")
+    filter_gui.OnEvent("escape","filter_escape")
+    filter_gui.OnEvent("close","filter_close")
     
     filter_gui.Add("Text","xm y+5 Right w35","File:")
     filter_gui.Add("ComboBox","yp-4 x+2 w410 vFileFilter").OnEvent("change","gui_events")
@@ -30,4 +32,17 @@ load_filters() {
     ctl.Value := Settings["CheckDupe"]
     
     filter_gui.Show()
+    
+    WinSetEnabled False, g.hwnd
+}
+
+filter_close(_gui) {
+    WinActivate "ahk_id " g.hwnd
+    WinSetEnabled True, g.hwnd
+    g["NameFilter"].Focus()
+}
+
+filter_escape(_gui) {
+    filter_close(_gui)
+    filter_gui.Destroy()
 }

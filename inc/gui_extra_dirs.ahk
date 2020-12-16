@@ -15,6 +15,7 @@ extra_dirs() {
     
     g2 := Gui.New("-MinimizeBox -MaximizeBox +Owner" g.hwnd,"Other Files (grouped with primary C++ Source File)")
     g2.OnEvent("close","g2_close")
+    g2.OnEvent("escape","g2_escape")
     
     g2.Add("Edit","xm w560 vOtherDir")
     g2.Add("Button","x+0 w20 vAddOtherDir","+").OnEvent("click","gui_events2")
@@ -51,5 +52,12 @@ gui_events2(ctl,info) {
 }
 
 g2_close(g2) {
+    WinActivate "ahk_id " g.hwnd
     WinSetEnabled True, g.hwnd
+    g["NameFilter"].Focus()
+}
+
+g2_escape(g2) {
+    g2_close(g2)
+    g2.Destroy()
 }

@@ -43,14 +43,9 @@ load_gui()
 
 If (Settings["AutoLoad"] And FileExist(Settings["LastFile"])) { ; load data if Auto-Load enabled
     UnlockGui(false)
-    selFile := Settings["LastFile"]
-    SplitPath selFile, fileName
-    g["Total"].Value := "Loading data file.  Please Wait ..."
-    fileData := FileRead(selFile)
-    const_list := jxon_load(fileData)
-    relist_const()
+    LoadFile(Settings["LastFile"])
     UnlockGui(true)
-    g["File"].Value := "File: " fileName
+    g["File"].Value := "File: " Settings["LastFile"]
 }
 
 OnMessage(0x0100,"WM_KEYDOWN") ; WM_KEYDOWN
