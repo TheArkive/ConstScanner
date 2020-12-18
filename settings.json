@@ -1,6 +1,5 @@
 {
     "ApiPath": "",
-    "Arch": 1,
     "AutoLoad": 0,
     "CheckDupe": 0,
     "CheckExpr": 1,
@@ -11,7 +10,11 @@
     "CheckUnknown": 1,
     "FileFilter": "",
     "LastFile": "",
+    "ScanType": "C&ollect",
     "baseFiles": [],
-    "x64compiler": "g++",
-    "x86compiler": ""
+    "var_copy": "var &only",
+    "x64_GCC": "msystem mingw64",
+    "x64_MSVC": "vcvars x64",
+    "x86_GCC": "msystem mingw32",
+    "x86_MSVC": "vcvars x86"
 }

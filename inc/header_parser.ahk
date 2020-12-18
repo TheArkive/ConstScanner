@@ -1,5 +1,5 @@
 includes_report() {
-    root := g["ApiPath"].Text
+    root := Settings["ApiPath"]
     SplitPath root, file, dir
     IncludesList := Map()
     Static q := Chr(34)
@@ -36,58 +36,55 @@ dupe_item_check(inArr,inValue) {
 header_parser() {
     Static q := Chr(34)
     
-    temp_dir_list := []
-    root := g["ApiPath"].Text, calcListTotal := 0, calcListCount := 1, d := StrReplace(root,"\","|")
-    If Settings.Has("dirs") And Settings["dirs"].Has(d) {
-        all_files := Settings["dirs"][d]["all"]
+    root := Settings["ApiPath"], calcListTotal := 0, calcListCount := 1, d := StrReplace(root,"\","|")
+    If Settings.Has("dirs") And Settings["dirs"].Has(d)
         other_dirs := Settings["dirs"][d]["files"]
-    } Else {
-        all_files := false
-        other_dirs := []
-    }
+    Else other_dirs := []
     
     If (!root Or !FileExist(root)) {
         Msgbox "Specify the C++ Source File first."
         return
     }
     
-    If all_files
-        MsgBox "*** WARNING ***`r`n`r`nScanning ALL headers in the source folder has a likelyhood of creating duplicate values."
+    ; If all_files
+        ; MsgBox "*** WARNING ***`r`n`r`nScanning ALL headers in the source folder has a likelyhood of creating duplicate values."
     
     const_list := Map()
-    includes_list := []
-    IncludesList := Map()
+    includes_list := [root] ; internal to prevent duplicate scans
+    IncludesList := Map() ; for user reference after scan is complete
     
-    If !all_files {
-        includes_list := [root]
-        
-        For oDir in other_dirs { ; maybe include error handling here, and allow relative paths in Other Dirs window
-            If !InStr(oDir,"*") {         ; Add full-path file to includes_list
-                If !dupe_item_check(includes_list,oDir)
-                    includes_list.Push(oDir)
-            } Else {                      ; Add all files defined in wildcard expression.
-                Loop Files oDir
-                {
-                    If !dupe_item_check(includes_list,A_LoopFileFullPath)
-                        includes_list.Push(A_LoopFileFullPath)
-                }
-            }
-        }
-    } Else {
-        SplitPath root, fileName, rootDir
-        Loop Files rootDir "\*.h", "R"
-            includes_list.Push(A_LoopFileFullPath)
-        
-        For oDir in other_dirs {
-            SplitPath oDir, file, o_Dir
-            
-            Loop Files o_Dir "\*.h", "R" ; rootDir
+    ; If !all_files {
+    ; includes_list := [root]
+    
+    For oDir in other_dirs { ; maybe include error handling here, and allow relative paths in Other Dirs window
+        If !InStr(oDir,"*") {         ; Add full-path file to includes_list
+            If !dupe_item_check(includes_list,oDir)
+                includes_list.Push(oDir)
+        } Else {                      ; Add all files defined in wildcard expression.
+            Loop Files oDir
             {
                 If !dupe_item_check(includes_list,A_LoopFileFullPath)
                     includes_list.Push(A_LoopFileFullPath)
             }
         }
     }
+    ; } Else {
+        ; SplitPath root, fileName, rootDir
+        ; Loop Files rootDir "\*.h", "R"
+            ; includes_list.Push(A_LoopFileFullPath)
+        
+        ; For oDir in other_dirs {
+            ; SplitPath oDir, file, o_Dir
+            
+            ; Loop Files o_Dir "\*.h", "R" ; rootDir
+            ; {
+                ; If !dupe_item_check(includes_list,A_LoopFileFullPath)
+                    ; includes_list.Push(A_LoopFileFullPath)
+            ; }
+        ; }
+    ; }
+    
+    ; msgbox jxon_dump(includes_list,4)
     
     prog := progress2.New(0,includes_list.Length,"title:Scanning files...,parent:" g.hwnd) ; counter was fCount
     Static rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
@@ -100,8 +97,10 @@ header_parser() {
         
         fullPath := includes_list[A_Index]
         
+        debug.msg("index: " a_index " / " fullPath)
+        
         If !FileExist(fullPath)
-            msgbox "NOT EXIST:`r`n    " fullPath
+            msgbox "FILE DOES NOT EXIST:`r`n    " fullPath
         
         IncludesList[StrReplace(fullPath,"\","|")] := []
         SplitPath fullPath, file
@@ -125,6 +124,8 @@ header_parser() {
                     includes_list.Push(cur_incl)            ; file list for parsing
                 
                 IncludesList[StrReplace(fullPath,"\","|")].Push(cur_incl)   ; nested includes list
+                
+                debug.msg("include: " cur_incl)
             } Else If (RegExMatch(curLine,rg2,m)) { ; match constants
                 constName := m.Value(1), constExp := m.Value(2)
                 
@@ -456,4 +457,35 @@ number_cleanup(inValue) {
         cValue := StrReplace(cValue,match,_num,,,1) ; replace hex with decimal
     }
     return cValue
+}
+
+get_full_path(inFile) {
+    fullPath := ""
+    root := Settings["ApiPath"]
+    SplitPath root, rootFile, rootDir
+    d := StrReplace(root,"\","|")
+    
+    If (!FileExist(rootDir))
+        return ""
+    
+    Loop Files rootDir "\*.h", "R"
+    {
+        If (!fullPath And InStr(A_LoopFileFullPath,"\" inFile)) {
+            fullPath := A_LoopFileFullPath, done := true
+            Break
+        }
+    }
+    
+    If (!fullPath) {
+        SplitPath rootDir,, _rootDir ; search up one level for the file
+        Loop Files _rootDir "\*", "R"
+        {
+            If (!fullPath And InStr(A_LoopFileFullPath,"\" inFile)) {
+                fullPath := A_LoopFileFullPath
+                Break
+            }
+        }
+    }
+    
+    return fullPath
 }

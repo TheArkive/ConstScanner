@@ -7,9 +7,12 @@
 ; Thanks to GroggyOtter on GitHub and to GaryFrost on autoIt
 ; forums for posting thier lists of Win32 API constants.
 
+; For a list of win32 headers by category / technology:
+; https://docs.microsoft.com/en-us/windows/win32/api/
+
 Global g:="", g3:="" ; Gui obj
 Global c:="" ; console obj
-Global SearchControlList := ["NameFilter","ValueFilter","ExpFilter"]
+Global SearchControlList := ["NameFilter","ValueFilter","ExpFilter"], recent_handle := 0
 Global IncludesList := Map()
 Global calcListCount := 1, calcListTotal := 0, calcErrorList := "", Mprog := ""
 Global doReset:=false, timerDelay := -500
@@ -22,21 +25,24 @@ If (FileExist("settings.json")) {
     sText := FileRead("settings.json")
     Settings := jxon_load(sText)
     
-    (!Settings.Has("LastFile"))     ? Settings["LastFile"]      := "" : ""
-    (!Settings.Has("AutoLoad"))     ? Settings["AutoLoad"]      := false : ""
-    (!Settings.Has("baseFiles"))    ? Settings["baseFiles"]     := [] : ""
-    (!Settings.Has("ApiPath"))      ? Settings["ApiPath"]       := "" : ""
-    (!Settings.Has("x64compiler"))  ? Settings["x64compiler"]   := "" : ""
-    (!Settings.Has("x86compiler"))  ? Settings["x86compiler"]   := "" : ""
+    (!Settings.Has("LastFile"))     ? Settings["LastFile"]     := "" : ""
+    (!Settings.Has("AutoLoad"))     ? Settings["AutoLoad"]     := false : ""
+    (!Settings.Has("baseFiles"))    ? Settings["baseFiles"]    := [] : ""
+    (!Settings.Has("ApiPath"))      ? Settings["ApiPath"]      := "" : ""
+    (!Settings.Has("ScanType"))     ? Settings["ScanType"]     := "C&ollect" : ""
+    (!Settings.Has("x64_MSVC"))     ? Settings["x64_MSVC"]     := "" : ""
+    (!Settings.Has("x86_MSVC"))     ? Settings["x86_MSVC"]     := "" : ""
+    (!Settings.Has("x64_GCC"))      ? Settings["x64_GCC"]      := "" : ""
+    (!Settings.Has("x86_GCC"))      ? Settings["x86_GCC"]      := "" : ""
     
-    (!Settings.Has("FileFilter"))   ? Settings["FileFilter"]    := "" : ""
-    (!Settings.Has("CheckInteger")) ? Settings["CheckInteger"]  := 1 : "" ; init check filters if they don't exist
-    (!Settings.Has("CheckFloat"))   ? Settings["CheckFloat"]    := 1 : ""
-    (!Settings.Has("CheckString"))  ? Settings["CheckString"]   := 1 : ""
-    (!Settings.Has("CheckUnknown")) ? Settings["CheckUnknown"]  := 1 : ""
-    (!Settings.Has("CheckOther"))   ? Settings["CheckOther"]    := 1 : ""
-    (!Settings.Has("CheckExpr"))    ? Settings["CheckExpr"]     := 1 : ""
-    (!Settings.Has("CheckDupe"))    ? Settings["CheckDupe"]     := 0 : ""
+    (!Settings.Has("FileFilter"))   ? Settings["FileFilter"]   := "" : ""
+    (!Settings.Has("CheckInteger")) ? Settings["CheckInteger"] := 1 : "" ; init check filters if they don't exist
+    (!Settings.Has("CheckFloat"))   ? Settings["CheckFloat"]   := 1 : ""
+    (!Settings.Has("CheckString"))  ? Settings["CheckString"]  := 1 : ""
+    (!Settings.Has("CheckUnknown")) ? Settings["CheckUnknown"] := 1 : ""
+    (!Settings.Has("CheckOther"))   ? Settings["CheckOther"]   := 1 : ""
+    (!Settings.Has("CheckExpr"))    ? Settings["CheckExpr"]    := 1 : ""
+    (!Settings.Has("CheckDupe"))    ? Settings["CheckDupe"]    := 0 : ""
 }
 
 load_gui()
@@ -81,7 +87,21 @@ listFiles() {
     return fileList
 }
 
-LoadFile(selFile) {
+LoadFile(selFile:="") {
+    If (selFile != "" And !FileExist(selFile)) {
+        msgbox "Previous loaded file no longer exist.`r`n`r`nLoad failed."
+        return
+    } Else {
+        selFile := FileSelect("1",A_ScriptDir "\data\","Load Constant File:","Data file (*.data)")
+        If (!selFile) ; user cancelled
+            return
+        SplitPath selFile,,,ext
+        If (ext != "data") Or (!FileExist(selFile)) {
+            Msgbox "You must select a data file."
+            return
+        }
+    }
+    
     g["Details"].Value := "", g["Duplicates"].Value := ""
     UnlockGui(false)
     SplitPath selFile, fileName
@@ -98,7 +118,7 @@ LoadFile(selFile) {
         const_list := in_load_data
     
     relist_const()
-    g["File"].Value := "File: " fileName
+    g["File"].Value := "Data File: " fileName
     Settings["LastFile"] := selFile
     
     UnlockGui(true)
@@ -123,22 +143,20 @@ SaveFile() {
         Settings["LastFile"] := saveFile
         MsgBox "Data file successfully saved."
         UnlockGui(true)
+        
+        SplitPath saveFile, fileName
+        g["File"].Value := "Data File: " fileName
     }
 }
 
 UnlockGui(bool) {
-    g["ApiPath"].Enabled := bool, g["PickApiPath"].Enabled := bool
-    g["AddBaseFile"].Enabled := bool, g["RemBaseFile"].Enabled := bool
-    g["OtherDirs"].Enabled := bool
-    
-    g["Arch"].Enabled := bool, g["Scan"].Enabled := bool, g["Includes"].Enabled := bool
-    g["Save"].Enabled := bool, g["Load"].Enabled := bool
+    g["Includes"].Enabled := bool
     
     g["NameFilter"].Enabled := bool, g["NameFilterClear"].Enabled := bool, g["NameBW"].Enabled := bool
     g["ValueFilter"].Enabled := bool, g["ValueFilterClear"].Enabled := bool, g["ValueEQ"].Enabled := bool
     g["ExpFilter"].Enabled := bool, g["ExpFilterClear"].Enabled := bool
     
-    g["MoreFilters"].Enabled := bool, g["Reset"].Enabled := bool, g["Copy"].Enabled := bool, g["CopyType"].Enabled := bool
+    g["MoreFilters"].Enabled := bool, g["Reset"].Enabled := bool ; , g["Copy"].Enabled := bool, g["CopyType"].Enabled := bool
     g["ConstList"].Enabled := bool, g["Tabs"].Enabled := bool
 }
 
@@ -246,11 +264,10 @@ filter_check(hwnd) {
 }
 
 WM_KEYDOWN(wParam, lParam, msg, hwnd) { ; up / down scrolling with keyboard
-    If (filter_check(hwnd) And wParam = 13) { ; pressing enter for filters
+    If (filter_check(hwnd) And wParam = 13) ; pressing enter for filters
         relist_const()
-    } Else If (g["ConstList"].hwnd = hwnd And (wParam = 38 Or wParam = 40)) {
+    Else If (g["ConstList"].hwnd = hwnd And (wParam = 38 Or wParam = 40))
         up_down_nav(wParam)
-    }
 }
 
 up_down_nav(key) {
