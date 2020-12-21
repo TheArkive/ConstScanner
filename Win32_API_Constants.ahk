@@ -14,7 +14,7 @@ Global g:="", g3:="" ; Gui obj
 Global c:="" ; console obj
 Global SearchControlList := ["NameFilter","ValueFilter","ExpFilter"], recent_handle := 0
 Global IncludesList := Map()
-Global calcListCount := 1, calcListTotal := 0, calcErrorList := "", Mprog := ""
+Global calcListCount := 1, calcListTotal := 0, calcErrorList := "", Mprog := "", mb := menubar.new()
 Global doReset:=false, timerDelay := -500
 Global const_list:=Map(), Settings:=Map(), filteredList := Map()
 
@@ -24,26 +24,30 @@ Global errMsg := "" ; for progress bar during calculations??
 If (FileExist("settings.json")) {
     sText := FileRead("settings.json")
     Settings := jxon_load(sText)
-    
-    (!Settings.Has("LastFile"))     ? Settings["LastFile"]     := "" : ""
-    (!Settings.Has("AutoLoad"))     ? Settings["AutoLoad"]     := false : ""
-    (!Settings.Has("baseFiles"))    ? Settings["baseFiles"]    := [] : ""
-    (!Settings.Has("ApiPath"))      ? Settings["ApiPath"]      := "" : ""
-    (!Settings.Has("ScanType"))     ? Settings["ScanType"]     := "C&ollect" : ""
-    (!Settings.Has("x64_MSVC"))     ? Settings["x64_MSVC"]     := "" : ""
-    (!Settings.Has("x86_MSVC"))     ? Settings["x86_MSVC"]     := "" : ""
-    (!Settings.Has("x64_GCC"))      ? Settings["x64_GCC"]      := "" : ""
-    (!Settings.Has("x86_GCC"))      ? Settings["x86_GCC"]      := "" : ""
-    
-    (!Settings.Has("FileFilter"))   ? Settings["FileFilter"]   := "" : ""
-    (!Settings.Has("CheckInteger")) ? Settings["CheckInteger"] := 1 : "" ; init check filters if they don't exist
-    (!Settings.Has("CheckFloat"))   ? Settings["CheckFloat"]   := 1 : ""
-    (!Settings.Has("CheckString"))  ? Settings["CheckString"]  := 1 : ""
-    (!Settings.Has("CheckUnknown")) ? Settings["CheckUnknown"] := 1 : ""
-    (!Settings.Has("CheckOther"))   ? Settings["CheckOther"]   := 1 : ""
-    (!Settings.Has("CheckExpr"))    ? Settings["CheckExpr"]    := 1 : ""
-    (!Settings.Has("CheckDupe"))    ? Settings["CheckDupe"]    := 0 : ""
 }
+
+(!Settings.Has("LastFile"))     ? Settings["LastFile"]     := "" : ""       ; init default values
+(!Settings.Has("AutoLoad"))     ? Settings["AutoLoad"]     := false : ""
+(!Settings.Has("baseFiles"))    ? Settings["baseFiles"]    := [] : ""
+(!Settings.Has("ApiPath"))      ? Settings["ApiPath"]      := "" : ""
+(!Settings.Has("ScanType"))     ? Settings["ScanType"]     := "C&ollect" : ""
+(!Settings.Has("x64_MSVC"))     ? Settings["x64_MSVC"]     := "" : ""
+(!Settings.Has("x86_MSVC"))     ? Settings["x86_MSVC"]     := "" : ""
+(!Settings.Has("x64_GCC"))      ? Settings["x64_GCC"]      := "" : ""
+(!Settings.Has("x86_GCC"))      ? Settings["x86_GCC"]      := "" : ""
+(!Settings.Has("CompilerType")) ? Settings["CompilerType"] := "x64_MSVC_Sel" : ""
+(!Settings.Has("AddIncludes"))  ? Settings["AddIncludes"]  := true : ""
+(!Settings.Has("var_copy"))     ? Settings["var_copy"]     := "&var := value" : ""
+
+(!Settings.Has("FileFilter"))   ? Settings["FileFilter"]   := "" : ""
+(!Settings.Has("CheckInteger")) ? Settings["CheckInteger"] := 1 : ""
+(!Settings.Has("CheckFloat"))   ? Settings["CheckFloat"]   := 1 : ""
+(!Settings.Has("CheckString"))  ? Settings["CheckString"]  := 1 : ""
+(!Settings.Has("CheckUnknown")) ? Settings["CheckUnknown"] := 1 : ""
+(!Settings.Has("CheckOther"))   ? Settings["CheckOther"]   := 1 : ""
+(!Settings.Has("CheckExpr"))    ? Settings["CheckExpr"]    := 1 : ""
+(!Settings.Has("CheckDupe"))    ? Settings["CheckDupe"]    := 1 : ""
+(!Settings.Has("CheckCrit"))    ? Settings["CheckCrit"]    := 1 : ""
 
 load_gui()
 
@@ -70,7 +74,7 @@ return ; end auto-exec section
 #INCLUDE inc\gui_incl_report.ahk
 #INCLUDE inc\gui_main.ahk
 #INCLUDE inc\header_parser.ahk
-#INCLUDE inc\parser_compiler.ahk
+; #INCLUDE inc\parser_compiler.ahk
 
 
 listFiles() {
@@ -91,7 +95,7 @@ LoadFile(selFile:="") {
     If (selFile != "" And !FileExist(selFile)) {
         msgbox "Previous loaded file no longer exist.`r`n`r`nLoad failed."
         return
-    } Else {
+    } Else If (selFile="") {
         selFile := FileSelect("1",A_ScriptDir "\data\","Load Constant File:","Data file (*.data)")
         If (!selFile) ; user cancelled
             return
@@ -158,6 +162,10 @@ UnlockGui(bool) {
     
     g["MoreFilters"].Enabled := bool, g["Reset"].Enabled := bool ; , g["Copy"].Enabled := bool, g["CopyType"].Enabled := bool
     g["ConstList"].Enabled := bool, g["Tabs"].Enabled := bool
+    
+    If (bool)
+        mb.Enable("&Source"), mb.Enable("&Data"), mb.Enable("&List"), mb.Enable("&Compile")
+    Else mb.Disable("&Source"), mb.Disable("&Data"), mb.Disable("&List"), mb.Enable("&Compile")
 }
 
 relist_const() {
@@ -178,10 +186,10 @@ relist_const() {
     ctl.Delete()
     tot := 0
     
-    i:=0, f:=0, s:=0, u:=0, o:=0, e:=0, d:=0 ; i, f, s, u, o, e, d ; tallies for each type
+    i:=0, f:=0, s:=0, u:=0, o:=0, e:=0, d:=0, c:=0 ; i, f, s, u, o, e, d, c ; tallies for each type
     i_f := Settings["CheckInteger"], f_f := Settings["CheckFloat"], s_f := Settings["CheckString"] ; checkbox type filters
     u_f := Settings["CheckUnknown"], o_f := Settings["CheckOther"], e_f := Settings["CheckExpr"]
-    d_f := Settings["CheckDupe"]
+    d_f := Settings["CheckDupe"],    c_f := Settings["CheckCrit"]
     
     nFilter := !n_fil ? "*" : n_fil
     nFilter := StrReplace(nFilter,"*",".*")
@@ -219,19 +227,22 @@ relist_const() {
         do_filter := false
         value := obj["value"], expr := obj["exp"], file := obj["file"], t := obj["type"]
         dupe := (obj.Has("dupe")) ? true : false
+        crit := (obj.Has("critical")) ? true : false
         
         If (RegExMatch(const,"i)" nFilter) And RegExMatch(value,"i)" vFilter) And RegExMatch(expr,"i)" eFilter) And RegExMatch(file,"i)" fFilter))
             do_filter := true
         
-        If (dupe And !d_f) Or (!dupe And d_f) ; skip dupes is "Dupe" check is unchecked
+        If (dupe And !d_f) Or (crit And !c_f) ; skip dupes and crits if check filter is unchecked
             Continue
         
-        If (t="integer" And !i_f) Or (t="float" And !f_f) Or (t="string" And !s_f) Or (t="unknown" And !u_f) Or (t="other" And !o_f) Or (t="expr" And !e_f)
+        If (t="integer" And !i_f) Or (t="float" And !f_f) Or (t="string" And !s_f) Or (t="unknown" And !u_f) Or (t="other" And !o_f) Or (t="expr" And !e_f) ; skip if unchecked
             Continue
         
         If do_filter {
             filteredList[const] := obj
-            ctl.Add(,const,value,expr,file), tot++ ; i, f, s, u, o, e, d    ; type filters
+            c_disp := (crit)?"X":""
+            d_disp := (dupe)?"X":""
+            ctl.Add(,const,value,obj["type"],file,d_disp,c_disp), tot++ ; i, f, s, u, o, e, d    ; type filters
             
             Switch obj["type"] {
                 Case "Integer": i+=1
@@ -243,12 +254,13 @@ relist_const() {
             }
             
             (dupe) ? d+=1 : ""
+            (crit) ? c+=1 : ""
         }
     }
     prog.close()
     
     ctl.Opt("+Redraw")
-    g["Total"].Text := "Total: " tot " / Unk: " u " / Known: " tot-u " / Int: " i " / Float: " f " / Str: " s " / Other: " o " / Expr: " e " / Dupes: " d
+    g["Total"].Text := "Total: " tot " / Unk: " u " / Known: " tot-u " / Int: " i " / Float: " f " / Str: " s " / Other: " o " / Expr: " e " / Dupes: " d " / Crit: " c
     
     If (doReset) {
         doReset:=false
@@ -279,19 +291,22 @@ up_down_nav(key) {
     gui_events(ctl,nextRow)
 }
 
-#HotIf WinActive("ahk_id " g.hwnd)
-
-^d::{ ; copy full deatils
+copy_const_details() {
     A_Clipboard := g["Details"].Value
 }
 
-^+d::{ ; copy selected constant name only
+copy_const_only() {
     n := g["ConstList"].GetNext()
     If (n) {
         t := g["ConstList"].GetText(n)
         A_Clipboard := t
     }
 }
+
+#HotIf WinActive("ahk_id " g.hwnd)
+
+^+d::copy_const_details()
+^d::copy_const_only()
 
 F2::{
     critList := "", i := 0
@@ -308,9 +323,4 @@ F2::{
     critList := Trim(critList)
     Msgbox "Critical constants.`r`nFull list is copied to clipboard.`r`n`r`nCount: " i "`r`n`r`n" (!critList ? "* None *" : critList)
     A_Clipboard := critList
-}
-
-F3::{
-    A_Clipboard := jxon_dump(IncludesList,4)
-    Msgbox "IncludesList dumped to clipboard."
 }

@@ -46,45 +46,22 @@ header_parser() {
         return
     }
     
-    ; If all_files
-        ; MsgBox "*** WARNING ***`r`n`r`nScanning ALL headers in the source folder has a likelyhood of creating duplicate values."
-    
     const_list := Map()
     includes_list := [root] ; internal to prevent duplicate scans
     IncludesList := Map() ; for user reference after scan is complete
-    
-    ; If !all_files {
-    ; includes_list := [root]
     
     For oDir in other_dirs { ; maybe include error handling here, and allow relative paths in Other Dirs window
         If !InStr(oDir,"*") {         ; Add full-path file to includes_list
             If !dupe_item_check(includes_list,oDir)
                 includes_list.Push(oDir)
         } Else {                      ; Add all files defined in wildcard expression.
-            Loop Files oDir
+            Loop Files oDir, "R"
             {
                 If !dupe_item_check(includes_list,A_LoopFileFullPath)
                     includes_list.Push(A_LoopFileFullPath)
             }
         }
     }
-    ; } Else {
-        ; SplitPath root, fileName, rootDir
-        ; Loop Files rootDir "\*.h", "R"
-            ; includes_list.Push(A_LoopFileFullPath)
-        
-        ; For oDir in other_dirs {
-            ; SplitPath oDir, file, o_Dir
-            
-            ; Loop Files o_Dir "\*.h", "R" ; rootDir
-            ; {
-                ; If !dupe_item_check(includes_list,A_LoopFileFullPath)
-                    ; includes_list.Push(A_LoopFileFullPath)
-            ; }
-        ; }
-    ; }
-    
-    ; msgbox jxon_dump(includes_list,4)
     
     prog := progress2.New(0,includes_list.Length,"title:Scanning files...,parent:" g.hwnd) ; counter was fCount
     Static rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
@@ -96,8 +73,6 @@ header_parser() {
             Break
         
         fullPath := includes_list[A_Index]
-        
-        debug.msg("index: " a_index " / " fullPath)
         
         If !FileExist(fullPath)
             msgbox "FILE DOES NOT EXIST:`r`n    " fullPath
@@ -111,21 +86,27 @@ header_parser() {
         fArr := StrSplit(fText,"`n","`r")
         
         cnt := 1
-        For i, curLine in fArr {
+        While (cnt <= fArr.Length) {
+            curLine := fArr[cnt]
+            
+            If Trim(curLine,"`t ") = "" {
+                cnt++
+                Continue
+            }
+            
             constValue := "" ; init value
-            cnt := 1 ; counter for more lines
             If (RegExMatch(curLine,rg1,m)) { ; include line
                 match := StrReplace(m.Value(2),q,"")
                 If !FileExist(match)
                     cur_incl := get_full_path(StrReplace(match,"/","\"))
                 else cur_incl := match
                 
-                If (!dupe_item_check(includes_list,cur_incl) And cur_incl != "")
+                If (!dupe_item_check(includes_list,cur_incl) And Trim(cur_incl," `t") != "")
                     includes_list.Push(cur_incl)            ; file list for parsing
                 
-                IncludesList[StrReplace(fullPath,"\","|")].Push(cur_incl)   ; nested includes list
+                If (Trim(cur_incl," `t") != "")
+                    IncludesList[StrReplace(fullPath,"\","|")].Push(cur_incl)   ; nested includes list
                 
-                debug.msg("include: " cur_incl)
             } Else If (RegExMatch(curLine,rg2,m)) { ; match constants
                 constName := m.Value(1), constExp := m.Value(2)
                 
@@ -136,13 +117,11 @@ header_parser() {
                     constExp := RegExReplace(constExp,"[ `t]*/\*.*","")
                 }
                 
-                nextLine := fArr[i+cnt]
                 While (SubStr(constExp,-1) = "\") {
-                    nextLine := RegExReplace(nextLine,"([ `t]*//.*|[ `t]*/\*.*?\*/)","")
+                    cnt++ ; inc next line
+                    nextLine := RegExReplace(fArr[cnt],"([ `t]*//.*|[ `t]*/\*.*?\*/)","")
                     nextLine := RegExReplace(nextLine,"[ `t]*/\*.*","")
-                    
-                    constExp := SubStr(constExp,1,-1) . nextLine
-                    cnt++, nextLine := fArr[i+cnt]
+                    constExp := Trim(SubStr(constExp,1,-1),"`t ") . nextLine
                 }
                 
                 constExp := RegExReplace(Trim(constExp," `t"),"[ ]{2,}"," ")
@@ -166,7 +145,7 @@ header_parser() {
                 Else If InStr(constExp,Chr(34)) Or InStr(constExp,"'")
                     cType := "String"
                 
-                item := Map("exp",constExp,"comment",comment,"file",file,"line",i,"value",constExp,"type",cType)
+                item := Map("exp",constExp,"comment",comment,"file",file,"line",cnt,"value",constExp,"type",cType)
                 
                 If (!const_list.Has(constName))
                     const_list[constName] := item
@@ -176,21 +155,15 @@ header_parser() {
                         const_list[constName]["dupe"].Push(item)
                     }
                 }
-                
-                ; If InStr(constName,"stat32i64") Or InStr(constName,"stati64")
-                    ; Debug.Msg(constName "`r`n" jxon_dump(item,4))
             }
+            
+            cnt++ ; increment line number
         }
         
         If (IncludesList[StrReplace(fullPath,"\","|")].Length = 0)
             IncludesList.Delete(StrReplace(fullPath,"\","|"))
     }
     prog.Close()
-    
-    
-    
-
-
     
     prevList := ""
     Loop {
@@ -200,59 +173,45 @@ header_parser() {
         prevList := curList
     }
     
-    
-    
-    
-    
-    
-    ; calcList := reparse2a() "`r`necho " Chr(34) "_quit_now_" Chr(34)
-    ; c := cli.New("cmd /K powershell","mode:spr"), c.QuitString := "_quit_now_"
-    ; c.write(calcList)
-    
-    ; Mprog := progress2.New(0,calcListTotal,"title:Calculating...")
-    ; test ================================
-    
-    
-    
-    
-    
-    
     reparse6()
-    relist_const()
-    UnlockGui(true)
 }
 
-; ============================================================================================
-; ============================================================================================
-QuitCallback(quitString,ID,CLIobj) {
-    Mprog.Close()
-    relist_const()
-    UnlockGui(true)
+create_cpp_file() {
+    Static q := Chr(34)
+    root := Settings["ApiPath"]
+    SplitPath root, rootFile, rootDir
     
-    If (calcErrorList)
-        MsgBox "The following constants had errors during calculation:`r`n`r`n" calcErrorList "`r`n`r`n"
-             . "Please look up these constants, find them in the source code, and inspect for errors."
-    calcErrorList := ""
+    cppFile := "#include <iostream>`r`n#include <" rootFile ">`r`n"
+    
+    row := 0, includes := [], constants := []
+    While (row := g["ConstList"].GetNext(row,"C")) {
+        If (Settings["AddIncludes"]) {
+            _include := g["ConstList"].GetText(row,4)
+            If (_include And !dupe_item_check(includes,_include))
+                includes.Push(_include)
+        }
+        constants.Push(g["ConstList"].GetText(row))
+    }
+    
+    For file in includes                     ; for user specified files ONLY
+        cppFile .= "#include <" file ">`r`n"
+    
+    cppFile .= "`r`nint main() {`r`n"
+    
+    If (FileExist("test_const.cpp"))
+        FileDelete "test_const.cpp"
+    If (FileExist("test_const.exe"))
+        FileDelete "test_const.exe"
+    If (FileExist("test_const.obj"))
+        FileDelete "test_const.obj"
+    
+    For const in constants
+        cppFile .= "    std::cout << " q const " = " q " << " const " << std::endl;`r`n"
+    
+    cppFile .= "`r`n    return 0;`r`n}"
+    FileAppend cppFile, "test_const.cpp"
 }
 
-PromptCallback(prompt,ID,o) {
-    If !o.ready
-        o.stdout := ""
-    Else {
-        d := StrReplace(o.stdout,"`r`n",""), errMsg := d
-        cmd := StrSplit(o.command,Chr(34))
-        const := Trim(cmd[2],":")
-        
-        s := InStr(d,":"), const2 := SubStr(d,1,s-1), value := SubStr(d,s+1)
-        Mprog.Update(calcListCount,const,calcListCount " of " calcListTotal), calcListCount++
-        
-        If !const_list.Has(const2)
-            calcErrorList .= const "`r`n"
-        Else
-            const_list[const]["value"] := value, const_list[const]["type"] := "integer"
-        o.stdout := ""
-    }
-}
 ; ============================================================================================
 ; ============================================================================================
 
@@ -286,7 +245,7 @@ reparse1a(pass) { ; constants that point to a single constant / any type
     return list
 }
 
-do_subs(obj,const:="",commit:=true) {
+do_subs(obj,const:="") {
     Static casting := "HRESULT|NTSTATUS|BCRYPT_ALG_HANDLE|ULONGLONG|LONGLONG|ULONG64|ULONG|LONG64|LONG32|LONG|long|float|LHANDLE|HANDLE|BYTE|ARGB|DISPID|HBITMAP|u_long|" ; long
                     . "BOOKMARK|DWORD64|DWORD32|DWORD|WORD|USHORT|SHORT|UINT64|UINT32|UINT16|UINT8|UINT|INT64|INT32|INT16|INT8|INT|int|CHAR|LPTSTR|LPSTR|LPCSTR|LPCTSTR|HWND|"
                     . "D3DRENDERSTATETYPE|D3DTRANSFORMSTATETYPE|D3DTEXTURESTAGESTATETYPE|D3DVERTEXBLENDFLAGS|HFILE|HCERTCHAINENGINE|HINSTANCE|unsigned long|"
@@ -298,9 +257,11 @@ do_subs(obj,const:="",commit:=true) {
                           . "MAKE_DMHRESULTERROR|MAKE_DSHRESULT|_NDIS_ERROR_TYPEDEF_|DBDAOERR|__MSABI_LONG"
     
     cValue := obj["value"]
-    cValue := RegExReplace(cValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1") ; func type conversion
-    While RegExMatch(cValue,"\x28 ?(" casting ")(?:_PTR)? ?\x29",_m) ; remove initial type casting
-        cValue := StrReplace(cValue,_m.Value(0),"")
+    
+    ; cValue := RegExReplace(cValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1") ; func type conversion
+    ; While RegExMatch(cValue,"\x28 ?(" casting ")(?:_PTR)? ?\x29",_m) ; remove initial type casting
+        ; cValue := StrReplace(cValue,_m.Value(0),"")
+    
     cValue := number_cleanup(cValue) ; try to clean up number formats, and convert hex to base-10
     
     newPos := 1
@@ -310,7 +271,7 @@ do_subs(obj,const:="",commit:=true) {
     (IsObject(m) And m.Count()) ? match := m.Value(1) : "" ; attempt to capture first match
     
     ; =============================================
-    ; If InStr(const,"AP_") = 1
+    ; If InStr(const,"API_SET_CHPE_GUEST") = 1
         ; Debug.Msg(const ": " const_list[const]["value"] "`r`nmatch: " match "`r`ncValue: " cValue)
     ; =============================================
     
@@ -324,13 +285,14 @@ do_subs(obj,const:="",commit:=true) {
             mValue := Integer(match), newObj := Map("type","")
         else {
             mValue := const_list[match]["exp"]
-            If (commit)
+            ; If (commit)
                 newObj := const_list[match], (newObj.Has("dupe")) ? (dupe_arr := newObj["dupe"]) : "" ; lay off critical for now
-            Else newObj := Map("type","")
+            ; Else newObj := Map("type","")
             
-            mValue := RegExReplace(mValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1")   ; func type conversion
-            While RegExMatch(mValue,"\x28 ?(" casting ") ?\x29",_m)                         ; remove type casting
-                mValue := StrReplace(mValue,_m.Value(0),"")
+            ; mValue := RegExReplace(mValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1")   ; func type conversion
+            ; While RegExMatch(mValue,"\x28 ?(" casting ") ?\x29",_m)                         ; remove type casting
+                ; mValue := StrReplace(mValue,_m.Value(0),"")
+            
             mValue := number_cleanup(mValue)
         }
         
@@ -348,16 +310,16 @@ do_subs(obj,const:="",commit:=true) {
         cValue := StrReplace(cValue,match,mValue,false,,1) ; the actual substitution within the expression
         
         ; =================================
-        ; If InStr(const,"AP_") = 1
+        ; If InStr(const,"API_SET_CHPE_GUEST") = 1
             ; Debug.Msg(const ": " const_list[const]["value"] "`r`n    match: " match "`r`n    mValue: " mValue "`r`ncValue: " cValue "`r`n")
         ; =================================
         
-        If (commit) {
+        ; If (commit) {
             If dupe_arr.Length > 0            ; lay off "critical" for now
                 obj["critical"] := Map()
             For i, item in dupe_arr ; indicates there may be an alternate value for const
                 obj["critical"][match] := item
-        }
+        ; }
         
         r := RegExMatch(cValue,"i)" rgx,m), match := "", newPos := 1 ; prep for next iteration
         If IsObject(m)
@@ -371,6 +333,11 @@ do_subs(obj,const:="",commit:=true) {
     }
     
     obj["value"] := cValue ; record the furthest progress of substitutions
+    
+    ; =================================
+    ; If InStr(const,"API_SET_CHPE_GUEST") = 1
+        ; Debug.Msg(const ": " const_list[const]["value"] "`r`ncValue: " cValue "`r`n")
+    ; =================================
     
     If (eval(cValue,true)) {
         cValue := RegExReplace(cValue,"(!|~) +","$1") ; remove spaces between ! or ~ and expression

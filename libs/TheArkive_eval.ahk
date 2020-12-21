@@ -25,6 +25,8 @@
 ; msgbox eval("2 ** -3 * 4 + 5 * 6 // 7 - 8") "`r`n" ; Still simple, but slightly more tricky.
            ; . 2 ** -3 * 4 + 5 * 6 // 7 - 8
 
+; msgbox eval("x86",true) ; first char MUST be a digit / ~ / ! / - or opening parenthesis "("
+
 
 ; ======================================================================================
 ; ======================================================================================
@@ -38,7 +40,7 @@ eval(e,test:=false) { ; extend support for parenthesis
     If (test And e = "")
         return false
     Else If (test)
-        return !RegExMatch(e,"i)(! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])") ; only return true/false testing "e" as expression
+        return !RegExMatch(Trim(e),"i)(^[^\d!~\-\x28]|! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])") ; only return true/false testing "e" as expression
     
     If RegExMatch(e,"i)(! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
         throw Exception("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34) "`r`n`r`nExpression: " e,,"Not a math expression.")
@@ -62,7 +64,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
         return e
     
     Static q := Chr(34)
-    If RegExMatch(e,"i)(! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
+    If RegExMatch(e,"i)(^[^\d!~\-\x28]|! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
         throw Exception("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34),,"Not a math expression.")
     
     Static _n   := "(?:\d+\.\d+(?:e\+\d+|e\-\d+|e\d+)?|0x[\dA-F]+|\d+)"  ; Regex to identify float/scientific notation, then hex, then base-10 numbers.  Only positive.

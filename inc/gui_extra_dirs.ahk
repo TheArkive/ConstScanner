@@ -36,7 +36,7 @@ extra_dirs() {
          . "    Files (full path):  X:\folder\folder\file.h`r`n"
          . "    Files (no path):    file.h (these entries will trigger a search)`r`n"
          . "    File Pattern:       X:\folder\file*.h`r`n"
-         . "    Directory:          x:\folder\folder\*"
+         . "    Directory:          x:\folder\folder\*.h   (recursive)"
     
     g2.Add("Button","xm+550 y+5 w50 vRemOtherDir","Remove").OnEvent("click","gui_events2")
     ctl := g2.Add("Text","xm yp w550 h130", msg)
@@ -60,7 +60,7 @@ gui_events2(ctl,info) {
         ctl.gui["OtherDirList"].Opt("-Redraw")
         For path in a {
             path := Trim(path,"`t ")
-            (!FileExist(path)) ? path := get_full_path(path) : ""   ; file not found, parse main folder, and one folder higher
+            ; (!FileExist(path)) ? path := get_full_path(path) : ""   ; file not found, parse main folder, and one folder higher
             
             If (path And !dupe_item_check(other_dirs,path))    ; check for dupe and .Push() to other_dirs
                 other_dirs.Push(path), ctl.gui["OtherDirList"].Add([path])
@@ -69,10 +69,6 @@ gui_events2(ctl,info) {
         ctl.gui["OtherDirList"].Opt("+Redraw")
         ctl.gui["OtherDir"].Value := ""
         ctl.gui["OtherDir"].Focus()
-        
-        ; ctl.gui["OtherDirList"].Add([v]), other_dirs.Push(v)
-        
-        
     } Else If (ctl.Name = "RemOtherDir" And ctl.gui["OtherDirList"].Value) {
         v := ctl.gui["OtherDirList"].Value
         Loop v.Length {

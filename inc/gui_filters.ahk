@@ -6,12 +6,13 @@ load_filters() {
     filter_gui.OnEvent("close","filter_close")
     
     filter_gui.Add("Text","xm y+5 Right w35","File:")
-    filter_gui.Add("ComboBox","yp-4 x+2 w410 vFileFilter").OnEvent("change","gui_events")
+    filter_gui.Add("ComboBox","yp-4 x+2 w410 vFileFilter Sort").OnEvent("change","gui_events")
     
     fileList := listFiles()
     filter_gui["FileFilter"].Delete()
     filter_gui["FileFilter"].Add(fileList)
     filter_gui["FileFilter"].Opt("+Sort")
+    filter_gui["FileFilter"].Text := Settings["FileFilter"]
     
     filter_gui.Add("Button","x+0 hp vFileFilterClear","X").OnEvent("click","gui_events")
     
@@ -28,8 +29,11 @@ load_filters() {
     ctl.Value := Settings["CheckOther"]
     ctl := filter_gui.Add("Checkbox","xs y+5 vExpr","Expr"), ctl.OnEvent("click","gui_events")
     ctl.Value := Settings["CheckExpr"]
-    ctl := filter_gui.Add("Checkbox","xs y+5 vDupe","Dupe"), ctl.OnEvent("click","gui_events")
+    
+    ctl := filter_gui.Add("Checkbox","xs+100 ys vDupe","Dupe"), ctl.OnEvent("click","gui_events")
     ctl.Value := Settings["CheckDupe"]
+    ctl := filter_gui.Add("Checkbox","xs+100 y+5 vCrit","Critical"), ctl.OnEvent("click","gui_events")
+    ctl.Value := Settings["CheckCrit"]
     
     filter_gui.Show()
     
