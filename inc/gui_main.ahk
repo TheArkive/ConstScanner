@@ -362,6 +362,8 @@ menu_events(ItemName, ItemPos, _o) {
         copy_const_details()
     } Else If (n="Copy selected constant &name only (single - CTRL+D)") {
         copy_const_only()
+    } Else if (n="&Copy selected constants (group)") {
+        copy_const_group()
     }
 }
 

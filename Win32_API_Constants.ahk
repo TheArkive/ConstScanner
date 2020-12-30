@@ -303,6 +303,18 @@ copy_const_only() {
     }
 }
 
+copy_const_group() {
+    list := "", n := 0
+    While(n := g["ConstList"].GetNext(n)) {
+        If StrReplace(Settings["var_copy"],"&","") = "var only"
+            list .= g["ConstList"].GetText(n) "`r`n"
+        Else If StrReplace(Settings["var_copy"],"&","") = "var := value"
+            list .= g["ConstList"].GetText(n) " := " g["ConstList"].GetText(n,2) "`r`n"
+        
+    }
+    A_Clipboard := list
+}
+
 #HotIf WinActive("ahk_id " g.hwnd)
 
 ^+d::copy_const_details()
@@ -324,3 +336,4 @@ F2::{
     Msgbox "Critical constants.`r`nFull list is copied to clipboard.`r`n`r`nCount: " i "`r`n`r`n" (!critList ? "* None *" : critList)
     A_Clipboard := critList
 }
+
