@@ -1,5 +1,5 @@
 incl_report() {
-    g3 := Gui.New("-MinimizeBox -MaximizeBox +Owner" g.hwnd,"#INCLUDES Report")
+    g3 := Gui.New("-MinimizeBox -MaximizeBox +Owner" Settings["gui"].hwnd,"#INCLUDES Report")
     g3.OnEvent("close","g3_close")
     g3.OnEvent("escape","g3_escape")
     
@@ -7,36 +7,38 @@ incl_report() {
     g3.Add("Button","x+0 w30 vClearFilter","X").OnEvent("click","gui_events3")
     ctl := g3.Add("Edit","xm w400 h400 ReadOnly y+2 vReport")
     
-    incl_report_filter()
-    
     g3.Add("Button","xm y+0 w400 vCopy","Copy").OnEvent("click","gui_events3")
     
     g3.Show()
     
-    WinSetEnabled False, g.hwnd
+    incl_report_filter(g3)
+    Static bf := Func("incl_report_filter").Bind(g3)
+    Settings["BoundFunc"] := bf
+    
+    WinSetEnabled False, Settings["gui"].hwnd
 }
 
 g3_close(_gui) {
-    WinActivate "ahk_id " g.hwnd
-    WinSetEnabled True, g.hwnd
+    WinActivate "ahk_id " Settings["gui"].hwnd
+    WinSetEnabled True, Settings["gui"].hwnd
 }
 
 g3_escape(_gui) {
     g3_close(_gui)
-    g3.Destroy()
+    _gui.Destroy()
 }
 
 gui_events3(ctl,info) {
     If (ctl.Name = "Filter") {
-        SetTimer "incl_report_filter", -500
+        SetTimer Settings["BoundFunc"], -500
     } Else If (ctl.Name = "ClearFilter") {
         ctl.gui["Filter"].Value := ""
-        SetTimer "incl_report_filter", -500
+        SetTimer Settings["BoundFunc"], -500
     } Else If (ctl.Name = "Copy")
         A_Clipboard := ctl.gui["Report"].Value
 }
 
-incl_report_filter() {
+incl_report_filter(g3) {
     filter_txt := g3["Filter"].Value
     final_list := Map()
     
@@ -48,8 +50,8 @@ incl_report_filter() {
             If InStr(inc_file,filter_txt) {
                 new_list := []
                 For k, v in list {
-                    SplitPath v, sub_inc
-                    new_list.Push(sub_inc)
+                    ; SplitPath v[1], sub_inc
+                    new_list.Push(v[1]) ; sub_inc)
                 }
                 final_list[inc_file] := new_list
             } Else {
@@ -58,13 +60,13 @@ incl_report_filter() {
                 new_list := []
                 
                 For k, v in list {
-                    SplitPath v, sub_inc
+                    ; SplitPath v, sub_inc
                     
-                    if InStr(sub_inc,filter_txt) {
+                    if InStr(v[1],filter_txt) { ; param 1 was:  sub_inc
                         add_list := true
-                        new_list.Push(sub_inc " <---------- match")
+                        new_list.Push(v[1] " <---------- match") ; sub_inc " <---------- match")
                     } Else
-                        new_list.Push(sub_inc)
+                        new_list.Push(v[1]) ; sub_inc)
                 }
                 
                 If add_list
@@ -80,13 +82,15 @@ incl_report_filter() {
             SplitPath incl, inc_file
             final_list[inc_file] := []
             For v in list {
-                SplitPath v, sub_file
-                final_list[inc_file].Push(sub_file)
+                ; SplitPath v, sub_file
+                ; msgbox "test: " v[1]
+                final_list[inc_file].Push(v[1]) ; sub_file)
             }
         }
     }
     
     rData := StrReplace(jxon_dump(final_list,4),"\\","\")
+    rData := StrReplace(rData,"\/","/")
     rData := StrReplace(rData,Chr(34),"")
     g3["Report"].Value := rData
 }

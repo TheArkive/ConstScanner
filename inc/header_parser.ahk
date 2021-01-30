@@ -1,71 +1,35 @@
 includes_report() {
-    root := Settings["ApiPath"]
-    SplitPath root, file, dir
-    IncludesList := Map()
     Static q := Chr(34)
     
-    Loop Files dir "\*.h", "R"
-    {
-        fileTxt := FileRead(A_LoopFileFullPath)
-        a := StrSplit(fileTxt,"`n","`r")
-        IncludesList[A_LoopFileName] := []
-        
-        For i, line in a {
-            rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
-            
-            If RegExMatch(line,rg1,m) {
-                cur_incl := StrReplace(m.Value(2),"/","\")
-                IncludesList[A_LoopFileName].Push(cur_incl)
-            }
-        }
-        
-        If (IncludesList[A_LoopFileName].Length = 0)
-            IncludesList.Delete(A_LoopFileName)
-    }
-    
-    incl_report()
-}
-
-dupe_item_check(inArr,inValue) {
-    For i, d in inArr
-        If d = inValue
-            return true
-    return false
-}
-
-header_parser() {
-    Static q := Chr(34)
-    
-    root := Settings["ApiPath"], calcListTotal := 0, calcListCount := 1, d := StrReplace(root,"\","|")
-    If Settings.Has("dirs") And Settings["dirs"].Has(d)
-        other_dirs := Settings["dirs"][d]["files"]
-    Else other_dirs := []
-    
-    If (!root Or !FileExist(root)) {
-        Msgbox "Specify the C++ Source File first."
-        return
-    }
+    prof := Settings["Recents"][Settings["ApiPath"]]
+    baseFolders := prof["BaseFolder"] ; array
+    other_dirs := []
+    For item in prof["OtherDirList"]
+        if (item[2] != 2)
+            other_dirs.Push(item[3])
     
     const_list := Map()
-    includes_list := [root] ; internal to prevent duplicate scans
     IncludesList := Map() ; for user reference after scan is complete
+    includes_list := []
     
     For oDir in other_dirs { ; maybe include error handling here, and allow relative paths in Other Dirs window
         If !InStr(oDir,"*") {         ; Add full-path file to includes_list
             If !dupe_item_check(includes_list,oDir)
                 includes_list.Push(oDir)
-        } Else {                      ; Add all files defined in wildcard expression.
+        } Else If (SubStr(oDir,-4) = "\*.h") { ; Add all files defined in wildcard expression... recursive.
             Loop Files oDir, "R"
+            {
+                If !dupe_item_check(includes_list,A_LoopFileFullPath)
+                    includes_list.Push(A_LoopFileFullPath)
+            }
+        } Else If (RegExMatch(oDir,"i)\\(?:[a-z0-9\-_]+)?\*(?:[a-z0-9\-_]+)?\.h$")) { ; All files matching pattern in folder only.
+            Loop Files oDir
             {
                 If !dupe_item_check(includes_list,A_LoopFileFullPath)
                     includes_list.Push(A_LoopFileFullPath)
             }
         }
     }
-    
-    prog := progress2.New(0,includes_list.Length,"title:Scanning files...,parent:" g.hwnd) ; counter was fCount
-    Static rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
-    Static rg2 := "i)^#define[ `t]+(\w+)[ `t]+(.+)"
     
     Loop { ; try reading and populating the loop simultaneously
         do_continue := false
@@ -80,7 +44,106 @@ header_parser() {
         IncludesList[StrReplace(fullPath,"\","|")] := []
         SplitPath fullPath, file
         
-        prog.Update(A_Index,A_Index " of " includes_list.Length,file)
+        fText := FileRead(fullPath)
+        fArr := StrSplit(fText,"`n","`r")
+        
+        cnt := 1
+        While (cnt <= fArr.Length) {
+            curLine := fArr[cnt]
+            
+            If Trim(curLine,"`t ") = "" {
+                cnt++
+                Continue
+            }
+            
+            constValue := "" ; init value
+            If (RegExMatch(curLine,"i)^\#include[ `t]+(<|\" q ")?([^>" q "]+)(>|\" q ")?",m)) { ; include line
+                match := StrReplace(StrReplace(m.Value(2),q,""),"/","\")
+                
+                If !(cur_incl := get_full_path(match,baseFolders)) {
+                    cur_incl := match
+                } Else If (!dupe_item_check(includes_list,cur_incl) And Trim(cur_incl," `t") != "")
+                    includes_list.Push(cur_incl)            ; file list for parsing
+                
+                If (Trim(cur_incl," `t") != "")
+                    IncludesList[StrReplace(fullPath,"\","|")].Push([match,cur_incl])   ; nested includes list
+            }
+            cnt++ ; increment line number
+        }
+        
+        If (IncludesList[StrReplace(fullPath,"\","|")].Length = 0)
+            IncludesList.Delete(StrReplace(fullPath,"\","|"))
+    }
+    
+    incl_report()
+}
+
+dupe_item_check(inArr,inValue) {
+    For i, d in inArr
+        If d = inValue
+            return true
+    return false
+}
+
+prune_comments(inText) {
+    result := RegExReplace(inText,"([ `t]*//.*|[ `t]*/\*.*?\*/)","")
+    result := RegExReplace(result,"[ `t]*/\*.*","")
+    return RTrim(result," `t")
+}
+
+header_parser() {
+    Static q := Chr(34)
+    
+    prof := Settings["Recents"][Settings["ApiPath"]]
+    baseFolders := prof["BaseFolder"] ; array
+    other_dirs := []
+    For item in prof["OtherDirList"]
+        if (item[2] != 2)
+            other_dirs.Push(item[3])
+    
+    const_list := Map()
+    IncludesList := Map() ; for user reference after scan is complete
+    includes_list := []
+    
+    For oDir in other_dirs { ; maybe include error handling here, and allow relative paths in Other Dirs window
+        If !InStr(oDir,"*") {         ; Add full-path file to includes_list
+            If !dupe_item_check(includes_list,oDir)
+                includes_list.Push(oDir)
+        } Else If (SubStr(oDir,-4) = "\*.h") { ; Add all files defined in wildcard expression... recursive.
+            Loop Files oDir, "R"
+            {
+                If !dupe_item_check(includes_list,A_LoopFileFullPath)
+                    includes_list.Push(A_LoopFileFullPath)
+            }
+        } Else If (RegExMatch(oDir,"i)\\(?:[a-z0-9\-_]+)?\*(?:[a-z0-9\-_]+)?\.h$")) { ; All files matching pattern in folder only.
+            Loop Files oDir
+            {
+                If !dupe_item_check(includes_list,A_LoopFileFullPath)
+                    includes_list.Push(A_LoopFileFullPath)
+            }
+        }
+    }
+    
+    prog := progress2.New(0,includes_list.Length,"title:Scanning files...,parent:" Settings["gui"].hwnd) ; counter was fCount
+    Static rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
+    Static rg2 := "i)^#define[ `t]+(\w+)[ `t]+(.+)"
+    Static rg3 := "i)^[ `t]*(?:(typedef|enum|struct))"
+    
+    prevLine := ""
+    Loop { ; try reading and populating the loop simultaneously
+        do_continue := false
+        If !includes_list.Has(A_Index)
+            Break
+        
+        fullPath := includes_list[A_Index]
+        
+        If !FileExist(fullPath)
+            msgbox "FILE DOES NOT EXIST:`r`n    " fullPath
+        
+        IncludesList[StrReplace(fullPath,"\","|")] := []
+        SplitPath fullPath, file
+        
+        prog.Update(A_Index,A_Index " of " includes_list.Length,file,"0-" includes_list.Length)
         
         fText := FileRead(fullPath)
         fArr := StrSplit(fText,"`n","`r")
@@ -96,31 +159,29 @@ header_parser() {
             
             constValue := "" ; init value
             If (RegExMatch(curLine,rg1,m)) { ; include line
-                match := StrReplace(m.Value(2),q,"")
-                If !FileExist(match)
-                    cur_incl := get_full_path(StrReplace(match,"/","\"))
-                else cur_incl := match
+                match := StrReplace(StrReplace(m.Value(2),q,""),"/","\")
                 
-                If (!dupe_item_check(includes_list,cur_incl) And Trim(cur_incl," `t") != "")
+                If !(cur_incl := get_full_path(match,baseFolders)) {
+                    cur_incl := match
+                } Else If (!dupe_item_check(includes_list,cur_incl) And Trim(cur_incl," `t") != "")
                     includes_list.Push(cur_incl)            ; file list for parsing
                 
                 If (Trim(cur_incl," `t") != "")
-                    IncludesList[StrReplace(fullPath,"\","|")].Push(cur_incl)   ; nested includes list
+                    IncludesList[StrReplace(fullPath,"\","|")].Push([match,cur_incl])   ; Main IncludesList
                 
             } Else If (RegExMatch(curLine,rg2,m)) { ; match constants
                 constName := m.Value(1), constExp := m.Value(2)
+                lineNum := cnt
                 
                 comment := ""
                 If (RegExMatch(constExp,"([ `t]*//.*|[ `t]*/\*.*)",m2)) {
                     comment := Trim(m2.Value(0)," `t")
-                    constExp := RegExReplace(constExp,"([ `t]*//.*|[ `t]*/\*.*?\*/)","")
-                    constExp := RegExReplace(constExp,"[ `t]*/\*.*","")
+                    constExp := prune_comments(constExp)
                 }
                 
                 While (SubStr(constExp,-1) = "\") {
                     cnt++ ; inc next line
-                    nextLine := RegExReplace(fArr[cnt],"([ `t]*//.*|[ `t]*/\*.*?\*/)","")
-                    nextLine := RegExReplace(nextLine,"[ `t]*/\*.*","")
+                    nextLine := prune_comments(fArr[cnt])
                     constExp := Trim(SubStr(constExp,1,-1),"`t ") . nextLine
                 }
                 
@@ -145,25 +206,68 @@ header_parser() {
                 Else If InStr(constExp,Chr(34)) Or InStr(constExp,"'")
                     cType := "String"
                 
-                item := Map("exp",constExp,"comment",comment,"file",file,"line",cnt,"value",constExp,"type",cType)
+                commit_item(constName,Map("exp",constExp,"comment",comment,"file",file,"line",lineNum,"value",constExp,"type",cType))
+            } Else If (RegExMatch(curLine,rg3,m)) {
+                lineNum := cnt, full := "" ; full = full body text of ENUM or STRUCT
+                cL := prune_comments(curLine)
                 
-                If (!const_list.Has(constName))
-                    const_list[constName] := item
-                Else {
-                    If checkDupeConst(const_list[constName],item) {
-                        (!const_list[constName].Has("dupe")) ? const_list[constName]["dupe"] := [] : ""
-                        const_list[constName]["dupe"].Push(item)
+                If RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+[a-z0-9_\*]+[ `t]+[a-z0-9_\*]+;$") {
+                    cnt++
+                    Continue
+                } Else If RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)[ `t]*\x7B.*?\x7D;$",m) {
+                    full := m.Value(0), constType := StrUpper(m.Value(1),"T"), constName := m.Value(2)
+                } Else If ( RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)(?:[ `t]*\x7B)?$",m)
+                         Or RegExMatch(td:=cL,"i)^[ `t]*(?:typedef|enum|struct)[ `t]*$") ) {
+                    
+                    If (td) {
+                        RegExMatch(fArr[cnt+1],"i)^[ `t]*(enum|struct)[ `t]+([a-z0-9_]+)",m)
+                        full := "typedef"
+                        If (!IsObject(m) Or m.Count() = 0) {
+                            cnt++
+                            Continue ; main while loop
+                        }
+                    } Else
+                        full := m.Value(0)
+                    
+                    constType := m.Value(1), constName := m.Value(2)
+                    If (constType != "struct" And constType != "enum") {
+                        cnt++
+                        Continue ; main while loop
+                    }
+                    
+                    full_no_comment := full, nextLine := "", full_no_comment := prune_comments(full)
+                    
+                    Loop {
+                        cnt++ ; inc next line
+                        If (!fArr.Has(cnt))
+                            Break
+                        nextLine := Trim(fArr[cnt],"`r`n")
+                        nextLine_no_comment := prune_comments(nextLine)
+                        If !nextLine
+                            Continue
+                        
+                        full .= "`r`n" nextLine
+                        full_no_comment .= "`r`n" nextLine_no_comment
+                        
+                        StrReplace(full_no_comment,"{","{",,encL), StrReplace(full_no_comment,"}","}",,encR)
+                        
+                        If RegExMatch(full_no_comment,"i)[ `t]*\x7D([`r`n `ta-z0-9_\,\*/]+)?;$") And (encL = encR) ; ender for enum|struct
+                            Break
                     }
                 }
+                
+                If (full)
+                    commit_item(constName,Map("exp","","comment","","file",file,"line",lineNum
+                               ,"value",Trim(full," `t"),"type",StrUpper(constType,"T"))) ; commit item to main array
             }
             
+            prevLine := curLine, td := ""
             cnt++ ; increment line number
         }
         
         If (IncludesList[StrReplace(fullPath,"\","|")].Length = 0)
             IncludesList.Delete(StrReplace(fullPath,"\","|"))
     }
-    prog.Close()
     
     prevList := ""
     Loop {
@@ -174,23 +278,53 @@ header_parser() {
     }
     
     reparse6()
+    ; prog.Close(), prog := ""
+    prog.Title("Preparing to reload list...")
+    prog.Update(0," "," ","0-100")
+    
+    ; A_Clipboard := jxon_dump(IncludesList,4)
+    ; msgbox A_Clipboard
+}
+
+commit_item(constName,item) {
+    If (!const_list.Has(constName))
+        const_list[constName] := item
+    Else If checkDupeConst(const_list[constName],item) {
+        (!const_list[constName].Has("dupe")) ? const_list[constName]["dupe"] := [] : ""
+        const_list[constName]["dupe"].Push(item)
+    }
 }
 
 create_cpp_file() {
     Static q := Chr(34)
-    root := Settings["ApiPath"]
-    SplitPath root, rootFile, rootDir
     
-    cppFile := "#include <iostream>`r`n#include <" rootFile ">`r`n"
+    inc_list := Settings["Recents"][Settings["ApiPath"]]["OtherDirList"]
+    BaseFolders := Settings["Recents"][Settings["ApiPath"]]["BaseFolder"]
+    def_inc := []
+    For item in inc_list {
+        If (item[1])
+            def_inc.Push(item[3])
+    }
+    
+    For file in def_inc {
+        ; SplitPath file, fileName
+        For bFolder in BaseFolders {
+            If InStr(file,bFolder) {
+                file := StrReplace(file,bFolder "\","")
+                Break
+            }
+        }
+        cppFile := "#include <iostream>`r`n#include <" file ">`r`n" ; was rootFile
+    }
     
     row := 0, includes := [], constants := []
-    While (row := g["ConstList"].GetNext(row,"C")) {
+    While (row := Settings["gui"]["ConstList"].GetNext(row,"C")) {
         If (Settings["AddIncludes"]) {
-            _include := g["ConstList"].GetText(row,4)
+            _include := Settings["gui"]["ConstList"].GetText(row,4)
             If (_include And !dupe_item_check(includes,_include))
                 includes.Push(_include)
         }
-        constants.Push(g["ConstList"].GetText(row))
+        constants.Push(Settings["gui"]["ConstList"].GetText(row))
     }
     
     For file in includes                     ; for user specified files ONLY
@@ -217,8 +351,9 @@ create_cpp_file() {
 
 reparse1a(pass) { ; constants that point to a single constant / any type
     t := 0, list := ""
-    prog := progress2.New(0, const_list.Count, "title:Calculating Constants...,parent:" g.hwnd)
-    prog.Update(A_Index,"Pass #" pass)
+    ; prog := progress2.New(0, const_list.Count, "title:Calculating Constants...,parent:" g.hwnd)
+    prog.Title("Calculating Constants..."), prog.Range("0-" const_list.Count)
+    prog.Update(0,"Pass #" pass)
     
     For const, obj in const_list {
         prog.Update(A_Index,,const)
@@ -241,7 +376,7 @@ reparse1a(pass) { ; constants that point to a single constant / any type
         }
     }
     
-    prog.Close()
+    ; prog.Close()
     return list
 }
 
@@ -357,8 +492,9 @@ do_subs(obj,const:="") {
 
 reparse6() {
     t := 0
-    prog := progress2.New(0,const_list.Count,"title:Reparse 6,parent:" g.hwnd)
-    prog.Update(A_Index,"Reparse 6 - removing duplicates with same value")
+    ; prog := progress2.New(0,const_list.Count,"title:Reparse 6,parent:" g.hwnd)
+    prog.Title("Removing Duplicates"), prog.Range("0-" const_list.Count)
+    prog.Update(0,"Reparse 6 - removing duplicates with same value")
     
     For const, obj in const_list {
         prog.Update(A_Index)
@@ -381,7 +517,7 @@ reparse6() {
         }
     }
     
-    prog.Close()
+    ; prog.Close()
 }
 
 checkDupeConst(main,dupe) {
@@ -426,32 +562,35 @@ number_cleanup(inValue) {
     return cValue
 }
 
-get_full_path(inFile) {
+get_full_path(inFile, BaseFolderArr:="") {
     fullPath := ""
-    root := Settings["ApiPath"]
-    SplitPath root, rootFile, rootDir
-    d := StrReplace(root,"\","|")
-    
-    If (!FileExist(rootDir))
-        return ""
-    
-    Loop Files rootDir "\*.h", "R"
-    {
-        If (!fullPath And InStr(A_LoopFileFullPath,"\" inFile)) {
-            fullPath := A_LoopFileFullPath, done := true
-            Break
+    For BaseFolder in BaseFolderArr {
+        If FileExist(inFile)
+            return inFile
+        Else {
+            SplitPath inFile, file, rootDir, ext
+            If (!DirExist(BaseFolder) Or BaseFolder="")
+                return ""
         }
-    }
-    
-    If (!fullPath) {
-        SplitPath rootDir,, _rootDir ; search up one level for the file
-        Loop Files _rootDir "\*", "R"
+        
+        Loop Files BaseFolder "\*", "R"
         {
             If (!fullPath And InStr(A_LoopFileFullPath,"\" inFile)) {
                 fullPath := A_LoopFileFullPath
                 Break
             }
         }
+        
+        ; If (!fullPath) {
+            ; SplitPath BaseFolder,, _rootDir ; search up one level for the file, recursively
+            ; Loop Files _rootDir "\*", "R"
+            ; {
+                ; If (!fullPath And InStr(A_LoopFileFullPath,"\" inFile)) {
+                    ; fullPath := A_LoopFileFullPath
+                    ; Break
+                ; }
+            ; }
+        ; }
     }
     
     return fullPath

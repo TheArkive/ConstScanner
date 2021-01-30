@@ -1,7 +1,7 @@
 Global filter_gui
 
 load_filters() {
-    filter_gui := Gui.New("-MinimizeBox -MaximizeBox +Owner" g.hwnd,"More Filter Options")
+    filter_gui := Gui.New("-MinimizeBox -MaximizeBox +Owner" Settings["gui"].hwnd,"More Filter Options")
     filter_gui.OnEvent("escape","filter_escape")
     filter_gui.OnEvent("close","filter_close")
     
@@ -23,24 +23,31 @@ load_filters() {
     ctl.Value := Settings["CheckFloat"]
     ctl := filter_gui.Add("Checkbox","y+5 vString","String"), ctl.OnEvent("click","gui_events")
     ctl.Value := Settings["CheckString"]
+    
+    ctl := filter_gui.Add("Checkbox","xs+100 ys vStruct Section","Struct"), ctl.OnEvent("click","gui_events")
+    ctl.Value := Settings["CheckStruct"]
+    ctl := filter_gui.Add("Checkbox","xs y+5 vEnum","Enum"), ctl.OnEvent("click","gui_events")
+    ctl.Value := Settings["CheckEnum"]
+    ctl := filter_gui.Add("Checkbox","xs y+5 vExpr","Expr"), ctl.OnEvent("click","gui_events")
+    ctl.Value := Settings["CheckExpr"]
+    
     ctl := filter_gui.Add("Checkbox","xs+100 ys vUnknown Section","Unknown"), ctl.OnEvent("click","gui_events")
     ctl.Value := Settings["CheckUnknown"]
     ctl := filter_gui.Add("Checkbox","xs y+5 vOther","Other"), ctl.OnEvent("click","gui_events")
     ctl.Value := Settings["CheckOther"]
-    ctl := filter_gui.Add("Checkbox","xs y+5 vExpr","Expr"), ctl.OnEvent("click","gui_events")
-    ctl.Value := Settings["CheckExpr"]
-    
-    ctl := filter_gui.Add("Checkbox","xs+100 ys vDupe","Dupe"), ctl.OnEvent("click","gui_events")
+    ctl := filter_gui.Add("Checkbox","xs y+5 vDupe","Dupe"), ctl.OnEvent("click","gui_events")
     ctl.Value := Settings["CheckDupe"]
-    ctl := filter_gui.Add("Checkbox","xs+100 y+5 vCrit","Critical"), ctl.OnEvent("click","gui_events")
+    ctl := filter_gui.Add("Checkbox","xs y+5 vCrit","Critical"), ctl.OnEvent("click","gui_events")
     ctl.Value := Settings["CheckCrit"]
+    
     
     filter_gui.Show()
     
-    WinSetEnabled False, g.hwnd
+    WinSetEnabled False, Settings["gui"].hwnd
 }
 
 filter_close(_gui) {
+    g := Settings["gui"]
     WinActivate "ahk_id " g.hwnd
     WinSetEnabled True, g.hwnd
     g["NameFilter"].Focus()
