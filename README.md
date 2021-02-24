@@ -27,22 +27,10 @@ It is important to note that the "scanner" portion of this script is not "hyper 
 
 Constant values with multiple definitions are referred to as "Dupes" in the GUI of the script.  "Critical" constants are defined as those whose value depends on one or more "Dupes".  You can filter out critical and dupe constants if desired.  You can also see all the dupe and critical info for each constant that has this type of info.
 
-## Currently included API databases:
-
-* Windows 10 API - as of 2020 Aug\
-123,088 constants / 78,964 Integers / Dupes: 5,695 / Critical: 3,435
-
-* Win32 headers from mingw64 (msys2 repo) as of 2020 Dec\
-106,414 constants / 68,708 Integers / Dupes: 2,408 / Critical: 3,436
-
-* scintilla API v4.4.3\
-3,071 constants / 3,066 Integers / Dupes and Critical: 0
-
 ## Planned changes:
 
 * Add a framework to allow user-defined values for constants before testing/compiling.
-* Add catalogging of ENUMs, STRUCTs, and a few other types for searching.
 
-Please use the latest AutoHotkey v2 alpha (currently a122).
+Please use the latest AutoHotkey v2 alpha (currently a125).
 
 https://www.autohotkey.com/download/2.0/
