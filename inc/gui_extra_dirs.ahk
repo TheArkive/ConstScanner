@@ -79,10 +79,10 @@ g2_menu_events(n, p, m) { ; ItemName, ItemPos, MenuObj
     row:=0
     If (n="Include during scan") {
         While (row:=m.ctl.GetNext(row)) {
-            file := m.ctl.GetText(row)
+            file_name := m.ctl.GetText(row)
             m.ctl.Modify(row,"Icon1")
             For curItem in Settings["MakeProfile"] {
-                If (file = curItem[3]) {
+                If (file_name = curItem[3]) {
                     Settings["MakeProfile"][A_Index][2] := 1
                     Break
                 }
@@ -90,10 +90,10 @@ g2_menu_events(n, p, m) { ; ItemName, ItemPos, MenuObj
         }
     } Else If (n="Exclude during scan") {
         While (row:=m.ctl.GetNext(row)) {
-            file := m.ctl.GetText(row)
+            file_name := m.ctl.GetText(row)
             m.ctl.Modify(row,"Icon2")
             For curItem in Settings["MakeProfile"] { ; array loop
-                If (file = curItem[3]) {
+                If (file_name = curItem[3]) {
                     Settings["MakeProfile"][A_Index][2] := 2
                     Break
                 }
@@ -101,10 +101,10 @@ g2_menu_events(n, p, m) { ; ItemName, ItemPos, MenuObj
         }
     } Else If (n="Delete") {
         While (row:=m.ctl.GetNext(0)) {
-            file := m.ctl.GetText(row)
+            file_name := m.ctl.GetText(row)
             m.ctl.Delete(row) ; delete in GUI
             For curItem in Settings["MakeProfile"] {
-                If (file = curItem[3]) {
+                If (file_name = curItem[3]) {
                     Settings["MakeProfile"].RemoveAt(A_Index) ; delete in backup array
                     Break
                 }
@@ -136,9 +136,9 @@ gui_events2b(ctl, Item, IsRightClick, X, Y) { ; context menu event
 }
 
 g2_check_event(ctl, row, c) {
-    file := ctl.GetText(row)
+    file_name := ctl.GetText(row)
     For item in Settings["MakeProfile"] {
-        If item[3] = file {
+        If item[3] = file_name {
             Settings["MakeProfile"][A_Index][1] := c
             Break
         }

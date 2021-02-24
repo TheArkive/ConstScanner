@@ -478,29 +478,29 @@ class cli {
         batchCmd := Trim(this.batchCmd," `r`n`t"), prompt := "", stream := this.stream
         SOcb := this.StdOutCallback, QuitCallback := this.QuitCallback
         
-        buffer := (!this.m) ? this.fStdOut.read() : this.mGet() ; check StdOut buffer
+        buf := (!this.m) ? this.fStdOut.read() : this.mGet() ; check StdOut buffer
         this.getStdErr()                                        ; check StdErr buffer
         
         fullEOF := (!this.m) ? this.fStdOut.AtEOF : 1 ; check EOF, in mode "m" this is always 1 (because StdOut is grid, not a stream)
         if (InStr(this.mode,"x"))
             (this.fStdOut.AtEOF And this.fStdErr.AtEOF) ? fullEOF := true : fullEOF := false
         
-        If (buffer) {
-            If (!this.m) Or (this.m And this.stdoutRaw != buffer) { ; normal collection - when there's a buffer
-                this.stdoutRaw := buffer, buffer := this.clean_lines(buffer)                                ; RTrim() spaces from buffer with .clean_lines()
-                InStr(this.mode,"f") ? (buffer := this.filterCtlCodes(buffer)) : ""                         ; remove control codes (SSH, older ADB)
-                prompt := this.getPrompt(buffer,true), buffer := this.removePrompt(buffer,prompt)           ; isolate prompt from buffer
-                buffer := RegExReplace(buffer,"^\Q" this.lastCmd "\E","")
+        If (buf) {
+            If (!this.m) Or (this.m And this.stdoutRaw != buf) { ; normal collection - when there's a buffer
+                this.stdoutRaw := buf, buf := this.clean_lines(buf)                                ; RTrim() spaces from buffer with .clean_lines()
+                InStr(this.mode,"f") ? (buf := this.filterCtlCodes(buf)) : ""                         ; remove control codes (SSH, older ADB)
+                prompt := this.getPrompt(buf,true), buf := this.removePrompt(buf,prompt)           ; isolate prompt from buffer
+                buf := RegExReplace(buf,"^\Q" this.lastCmd "\E","")
                 
-                If (this.QuitString And RegExMatch(Trim(buffer,"`r`n`t"),"\Q" this.QuitString "\E$") And IsFunc(QuitCallback)) {
+                If (this.QuitString And RegExMatch(Trim(buf,"`r`n`t"),"\Q" this.QuitString "\E$") And IsFunc(QuitCallback)) {
                     %QuitCallback%(this.QuitString,this.ID,this) ; check for QuitString before prompt is added
                     this.close()
                     return
                 }
                 
-                (!this.m) ? this.stdout .= "`r`n" buffer : this.stdout := buffer ; write/append buffer to .stdout
+                (!this.m) ? this.stdout .= "`r`n" buf : this.stdout := buf ; write/append buffer to .stdout
                 
-                (IsFunc(SOcb)) ? %SOcb%(buffer,this.ID,this) : ""  ; trigger StdOut callback
+                (IsFunc(SOcb)) ? %SOcb%(buf,this.ID,this) : ""  ; trigger StdOut callback
                 (prompt) ? this.promptEvent(prompt) : ""           ; trigger prompt casllback
             } 
         }
@@ -637,18 +637,18 @@ class cli {
             lastLine := A_LoopField
         return lastLine
     }
-    removePrompt(buffer,lastLine) {
+    removePrompt(buf,lastLine) {
         If (lastLine = "")
-            return buffer
+            return buf
         Else {
-            buffer := RTrim(buffer,"`r`n ")
-            nextLine := this.GetLastLine(buffer)
+            buf := RTrim(buf,"`r`n ")
+            nextLine := this.GetLastLine(buf)
             While (nextLine = lastLine) {
-                buffer := RegExReplace(buffer,"\Q" lastLine "\E$","")
-                nextLine := this.GetLastLine(buffer)
+                buf := RegExReplace(buf,"\Q" lastLine "\E$","")
+                nextLine := this.GetLastLine(buf)
             }
             
-            return Trim(buffer,"`r`n")
+            return Trim(buf,"`r`n")
         }
     }
     checkShell() {
@@ -667,9 +667,9 @@ class cli {
         batchCmd := Trim(batchCmd," `r`n`t")
         return i
     }
-    filterCtlCodes(buffer) {
-        buffer := RegExReplace(buffer,"\x1B\[\d+\;\d+H","`r`n")
-        buffer := RegExReplace(buffer,"`r`n`n","`r`n")
+    filterCtlCodes(buf) {
+        buf := RegExReplace(buf,"\x1B\[\d+\;\d+H","`r`n")
+        buf := RegExReplace(buf,"`r`n`n","`r`n")
         
         r1 := "\x1B\[(m|J|K|X|L|M|P|\@|b|A|B|C|D|g|I|Z|k|e|a|j|E|F|G|\x60|d|H|f|s|u|r|S|T|c)"
         r2 := "\x1B\[\d+(m|J|K|X|L|M|P|\@|b|A|B|C|D|g|I|Z|k|e|a|j|E|F|G|\x60|d|H|f|r|S|T|c|n|t)"
@@ -681,10 +681,10 @@ class cli {
         r8 := "\x1B\]0\;[\w_\-\.\@ \:\~]+?\x07"
         
         allR := r1 "|" r2 "|" r3 "|" r4 "|" r5 "|" r6 "|" r7 "|" r8
-        buffer := RegExReplace(buffer,allR,"")
+        buf := RegExReplace(buf,allR,"")
         
-        buffer := StrReplace(buffer,"`r","")
-        buffer := StrReplace(buffer,"`n","`r`n")
-        return buffer
+        buf := StrReplace(buf,"`r","")
+        buf := StrReplace(buf,"`n","`r`n")
+        return buf
     }
 }

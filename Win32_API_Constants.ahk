@@ -10,6 +10,8 @@
 ; For a list of win32 headers by category / technology:
 ; https://docs.microsoft.com/en-us/windows/win32/api/
 
+#NoTrayIcon
+
 Global Settings:=Map()
 ; Global g:="", g3:="" ; Gui obj
 Global c:="" ; console obj
@@ -134,12 +136,12 @@ listFiles() {
     list_of_files := Map(), fileList := []
     
     For const, obj in const_list {
-        file := obj["file"]
-        list_of_files[file] := ""
+        file_name := obj["file"]
+        list_of_files[file_name] := ""
     }
     
-    For file in list_of_files
-        fileList.Push(file)
+    For file_name in list_of_files
+        fileList.Push(file_name)
     
     return fileList
 }
@@ -303,11 +305,11 @@ relist_const() {
     For const, obj in const_list {
         prog.Update(A_Index)
         do_filter := false
-        value := obj["value"], expr := obj["exp"], file := obj["file"], t := obj["type"]
+        value := obj["value"], expr := obj["exp"], file_name := obj["file"], t := obj["type"]
         dupe := (obj.Has("dupe")) ? true : false
         crit := (obj.Has("critical")) ? true : false
         
-        If (RegExMatch(const,"i)" nFilter) And RegExMatch(value,"i)" vFilter) And RegExMatch(expr,"i)" eFilter) And RegExMatch(file,"i)" fFilter))
+        If (RegExMatch(const,"i)" nFilter) And RegExMatch(value,"i)" vFilter) And RegExMatch(expr,"i)" eFilter) And RegExMatch(file_name,"i)" fFilter))
             do_filter := true
         
         If (dupe And !d_f) Or (crit And !c_f) ; skip dupes and crits if check filter is unchecked
@@ -321,7 +323,7 @@ relist_const() {
             filteredList[const] := obj
             c_disp := (crit)?"X":""
             d_disp := (dupe)?"X":""
-            ctl.Add(,const,value,obj["type"],file,d_disp,c_disp), tot++ ; i, f, s, u, o, e, d    ; type filters
+            ctl.Add(,const,value,obj["type"],file_name,d_disp,c_disp), tot++ ; i, f, s, u, o, e, d    ; type filters
             
             Switch obj["type"] {
                 Case "Integer": i+=1

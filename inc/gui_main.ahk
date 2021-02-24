@@ -38,6 +38,7 @@ load_gui() {
     ctl.SetFont("s8","Verdana")
     
     ctl := g.Add("ListView","xm y+5 w1051 h300 vConstList Checked",["Name","Value","Type","File","D","C"]) ; w1050
+    ctl.OnEvent("ContextMenu","gui_context")
     ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,135), ctl.ModifyCol(4,200), ctl.ModifyCol(5,30), ctl.ModifyCol(6,30)
     ctl.OnEvent("click","gui_events")
     
@@ -75,7 +76,10 @@ load_gui() {
     g.Add("Radio","xs y+10 vx86_MSVC_Sel","x86:").OnEvent("click","gui_events")
     g.Add("Radio","xs+" ColW " yp-25 vx64_GCC_Sel","x64:").OnEvent("click","gui_events")
     g.Add("Radio","xs+" CoLW " y+10 vx86_GCC_Sel","x86:").OnEvent("click","gui_events")
-    g[Settings["CompilerType"]].Value := 1
+    
+    ; msgbox Settings["CompilerType"] " : " g[Settings["CompilerType"]].Value
+    
+    ; g[Settings["CompilerType"]].Value := 1
     
     g.Add("Edit","xs+45 ys+22 w" width " vx64_MSVC",Settings["x64_MSVC"]).OnEvent("change","gui_events")
     g.Add("Edit","xs+45 y+2 w" width " vx86_MSVC",Settings["x86_MSVC"]).OnEvent("change","gui_events")
@@ -93,6 +97,8 @@ load_gui() {
     
     g.Show("")
     g["NameFilter"].Focus()
+    
+    g[Settings["CompilerType"]].Value := 1
     
     return g
 }
@@ -128,6 +134,20 @@ close_gui(*) {
         FileDelete "settings.json"
     FileAppend sText, "settings.json"
     ExitApp
+}
+
+gui_context(ctl, Item, rc, X, Y) {
+    m := Menu.New()
+    m.Add("&Copy Constants (group)","ListView_MenuEvent")
+    m.Add("Copy Constant Details (single - &Focused)","ListView_MenuEvent")
+    m.Show()
+}
+
+ListView_MenuEvent(ItemName, ItemPos, Menu) {
+    If (ItemName = "&Copy Constants (group)")
+        copy_const_group()
+    Else If (ItemName = "Copy Constant Details (single - &Focused)")
+        copy_const_details()
 }
 
 gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
@@ -231,9 +251,9 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
     } Else If (n = "RemBaseFile") {
         curFile := g["ApiPath"].Text
         curBase := Settings["baseFiles"], newList := []
-        For i, file in curBase {
-            If (file != curFile)
-                newList.Push(file)
+        For i, file_name in curBase {
+            If (file_name != curFile)
+                newList.Push(file_name)
         }
         g["ApiPath"].Delete()
         g["ApiPath"].Add(newList)
@@ -254,10 +274,10 @@ recents_menu() {
     mb_recent.Add("Clear &Recents","menu_events")
     mb_recent.Add("&Edit Recents","menu_events")
     mb_recent.Add()
-    For file in Settings["Recents"] {
-        mb_recent.Add(file,"menu_events")
-        If (file = Settings["ApiPath"])
-            mb_recent.Check(file)
+    For file_name in Settings["Recents"] {
+        mb_recent.Add(file_name,"menu_events")
+        If (file_name = Settings["ApiPath"])
+            mb_recent.Check(file_name)
     }
     
     return mb_recent
@@ -464,9 +484,10 @@ copy_const_group() {
     While(n := g["ConstList"].GetNext(n)) {
         If StrReplace(Settings["var_copy"],"&","") = "var only"
             list .= g["ConstList"].GetText(n) "`r`n"
-        Else If StrReplace(Settings["var_copy"],"&","") = "var := value"
-            list .= g["ConstList"].GetText(n) " := " g["ConstList"].GetText(n,2) "`r`n"
-        
+        Else If StrReplace(Settings["var_copy"],"&","") = "var := value" {
+            value := (IsInteger(value:=g["ConstList"].GetText(n,2))) ? Format("0x{:X}",value) : value
+            list .= g["ConstList"].GetText(n) " := " value "`r`n"
+        }
     }
     A_Clipboard := list
 }

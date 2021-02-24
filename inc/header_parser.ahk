@@ -42,7 +42,7 @@ includes_report() {
             msgbox "FILE DOES NOT EXIST:`r`n    " fullPath
         
         IncludesList[StrReplace(fullPath,"\","|")] := []
-        SplitPath fullPath, file
+        ; SplitPath fullPath, file_name
         
         fText := FileRead(fullPath)
         fArr := StrSplit(fText,"`n","`r")
@@ -141,9 +141,9 @@ header_parser() {
             msgbox "FILE DOES NOT EXIST:`r`n    " fullPath
         
         IncludesList[StrReplace(fullPath,"\","|")] := []
-        SplitPath fullPath, file
+        SplitPath fullPath, file_name
         
-        prog.Update(A_Index,A_Index " of " includes_list.Length,file,"0-" includes_list.Length)
+        prog.Update(A_Index,A_Index " of " includes_list.Length,file_name,"0-" includes_list.Length)
         
         fText := FileRead(fullPath)
         fArr := StrSplit(fText,"`n","`r")
@@ -206,7 +206,7 @@ header_parser() {
                 Else If InStr(constExp,Chr(34)) Or InStr(constExp,"'")
                     cType := "String"
                 
-                commit_item(constName,Map("exp",constExp,"comment",comment,"file",file,"line",lineNum,"value",constExp,"type",cType))
+                commit_item(constName,Map("exp",constExp,"comment",comment,"file",file_name,"line",lineNum,"value",constExp,"type",cType))
             } Else If (RegExMatch(curLine,rg3,m)) {
                 lineNum := cnt, full := "" ; full = full body text of ENUM or STRUCT
                 cL := prune_comments(curLine)
@@ -257,7 +257,7 @@ header_parser() {
                 }
                 
                 If (full)
-                    commit_item(constName,Map("exp","","comment","","file",file,"line",lineNum
+                    commit_item(constName,Map("exp","","comment","","file",file_name,"line",lineNum
                                ,"value",Trim(full," `t"),"type",StrUpper(constType,"T"))) ; commit item to main array
             }
             
@@ -306,15 +306,15 @@ create_cpp_file() {
             def_inc.Push(item[3])
     }
     
-    For file in def_inc {
+    For file_name in def_inc {
         ; SplitPath file, fileName
         For bFolder in BaseFolders {
-            If InStr(file,bFolder) {
-                file := StrReplace(file,bFolder "\","")
+            If InStr(file_name,bFolder) {
+                file_name := StrReplace(file_name,bFolder "\","")
                 Break
             }
         }
-        cppFile := "#include <iostream>`r`n#include <" file ">`r`n" ; was rootFile
+        cppFile := "#include <iostream>`r`n#include <" file_name ">`r`n" ; was rootFile
     }
     
     row := 0, includes := [], constants := []
@@ -327,8 +327,8 @@ create_cpp_file() {
         constants.Push(Settings["gui"]["ConstList"].GetText(row))
     }
     
-    For file in includes                     ; for user specified files ONLY
-        cppFile .= "#include <" file ">`r`n"
+    For file_name in includes                     ; for user specified files ONLY
+        cppFile .= "#include <" file_name ">`r`n"
     
     cppFile .= "`r`nint main() {`r`n"
     
@@ -568,7 +568,7 @@ get_full_path(inFile, BaseFolderArr:="") {
         If FileExist(inFile)
             return inFile
         Else {
-            SplitPath inFile, file, rootDir, ext
+            SplitPath inFile, file_name, rootDir, ext
             If (!DirExist(BaseFolder) Or BaseFolder="")
                 return ""
         }
@@ -582,7 +582,7 @@ get_full_path(inFile, BaseFolderArr:="") {
         }
         
         ; If (!fullPath) {
-            ; SplitPath BaseFolder,, _rootDir ; search up one level for the file, recursively
+            ; SplitPath BaseFolder,, _rootDir ; search up one level for the file_name, recursively
             ; Loop Files _rootDir "\*", "R"
             ; {
                 ; If (!fullPath And InStr(A_LoopFileFullPath,"\" inFile)) {

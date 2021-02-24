@@ -18,18 +18,30 @@
 ;		> specify options to initialize certain values on creation (optional)
 ;
 ; Methods:
-;	obj.Update(value := "", mainText := "", subText := "")
-;		> value = numeric within the specified range
-;		> mainText / subText: update the text above / below the progress bar
-;		> if you want to clear the mainText or subText pass a space, ie. " "
-;		> to leave mainText / SubText unchanged, pass a zero-length string, ie. ""
+;	obj.Update(value := "", mainText := "", subText := "", range := "", title := "")
+;		> value = # ... within the specified range.
+;		> MainText / subText: update the text above / below the progress bar
+;		> If you want to clear the mainText or subText pass a space, ie. " "
+;		> To leave mainText / SubText unchanged, pass a zero-length string, ie. ""
+;       >>> With this "range" parameter you must specify a range to change it, unlike "obj.Range()" below.
+;       >>> With this "title" parameter you must specify a title to change it, unlike "obj.Title()" below.
 ;
 ;	obj.Close()
 ;		> closes the progress bar
 ;
+;   obj.Range("#-#")
+;       > Redefine the range on the fly.
+;         Example:  obj.Range("0-50")
+;       > Specify obj.Range("") to set the range to default (0-100).
+;
+;   obj.Title(newTitle)
+;       > Change the title on the fly.  You can specify "" to clear the title.
 ; ============================================================================================
 ; sOptions on create.  Comma separated string including zero or more of the below options.
 ; MainText / SubText are the text above / below the progress bar.
+;
+;   AlwaysOnTop:1
+;       > set the progress bar to be always on top of other windows.
 ;
 ;	fontFace:font_str
 ;		> set the font for MainText / SubText
@@ -108,7 +120,7 @@ class progress2 {
     fontFace := "Verdana", fontSize := 8, mainTextSize := 10
     mainTextAlign := "left", subTextAlign := "left"
     mainText := " ", subText := " ", title := "", start := 0, modal := false, parent := 0, width := 300
-    x := "", y := "", mainTextHwnd := 0, subTextHwnd := 0
+    x := "", y := "", mainTextHwnd := 0, subTextHwnd := 0, AlwaysOnTop := 0
     
 	__New(rangeStart := 0, rangeEnd := 100, sOptions := "") {
 		this.rangeStart := rangeStart, this.rangeEnd := rangeEnd
@@ -125,7 +137,9 @@ class progress2 {
         x := "", y := ""
 		showTitle := this.title ? "" : " -Caption +0x40000" ; 0x40000 = thick border
 		range := this.rangeStart "-" this.rangeEnd
-		progress2_gui := Gui.New("AlwaysOnTop -SysMenu " showTitle,this.title)
+        
+        ; gui_opt := (this.AlwaysOnTop ? "AlwaysOnTop " : "") "-SysMenu " showTitle
+		progress2_gui := Gui.New((this.AlwaysOnTop ? "AlwaysOnTop " : "") "-SysMenu " showTitle,this.title)
 		
 		progress2_gui.SetFont("s" this.mainTextSize,this.fontFace)
 		align := this.mainTextAlign
@@ -160,22 +174,32 @@ class progress2 {
 		this.guiHwnd := progress2_gui.hwnd
 		this.gui := progress2_gui
 	}
-	Update(value := "", mainText := "", subText := "") {
+	Update(value := "", mainText := "", subText := "", range := "", title := "") {
 		If (value != "")
 			this.gui["ProgBar"].Value := value
 		If (this.mainTextHwnd And mainText)
 			this.gui["MainText"].Text := mainText
 		If (this.subTextHwnd And subText)
 			this.gui["SubText"].Text := subText
+        If (range)
+            this.gui["ProgBar"].Opt("Range" range)
+        If (title)
+            this.gui["ProgBar"].Title := title
 	}
+    Range(range := "0-100") {
+        this.gui["ProgBar"].Opt("Range" range)
+    }
+    Title(newTitle := "") {
+        this.gui["ProgBar"].Title := newTitle
+    }
 	Close() {
 		If (IsObject(this.gui))
 			this.gui.Destroy()
 		
+        ; If (this.parent)
+			; WinActivate "ahk_id " this.parent
 		If (this.modal)
-			WinSetEnabled 0, "ahk_id " this.parent
-		If (this.parent)
-			WinActivate "ahk_id " this.parent
+			WinSetEnabled 1, "ahk_id " this.parent
 		
 		this.__Delete()
 	}

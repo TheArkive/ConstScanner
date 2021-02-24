@@ -19,7 +19,6 @@ gui_events4(ctl,info) {
     If (ctl.Name = "RecentsList" Or ctl.Name = "Remove") {
         If (row := ctl.gui["RecentsList"].Value) {
             txt := ctl.gui["RecentsList"].Text
-            ; msgbox "row: " row
             ctl.gui["RecentsList"].Delete(row)
             Settings["Recents"].Delete(txt)
             Settings["gui"].Menubar := load_menubar()

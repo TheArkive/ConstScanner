@@ -206,7 +206,7 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 		
 		return is_array ? "[" . out . "]" : "{" . out . "}"
 	} else { ; Number
-		number := "number"
+		; number := "number"
 		If (Type(obj) != "String")
 			return obj
 		Else {

@@ -1,5 +1,5 @@
 ; ==================================================================
-; Live
+; GuiControl_Ex
 ; ==================================================================
 
 __w(ctl) {                  ; A short wrapper function, use in place of gCtl.New() when manually wrapping the control.
@@ -29,12 +29,14 @@ class gCtl extends gCtl.GuiControl { ; GuiControls - place custom methods() and 
             return (SendMessage(4140,row-1,0xF000,, "ahk_id " ctl.hwnd) >> 12) - 1 ; VM_GETITEMSTATE = 4140 / LVIS_STATEIMAGEMASK = 0xF000
     }
     
-    GetCount(p*) { ; ListView, TreeView, ListBox
+    GetCount(p*) { ; ListView, TreeView, ListBox, ComboBox
         ctl := __current_gui_control
         If (ctl.Type = "ListView" Or ctl.Type = "TreeView") ; original functionality for TreeView / ListView
             return ctl.GetCount(p*)
         Else If (ctl.Type = "ListBox")
             return SendMessage(0x018B, 0, 0, ctl.hwnd) ; LB_GETCOUNT
+        Else If (ctl.Type = "ComboBox")
+            return SendMessage(0x146, 0, 0, ctl.hwnd) ; CB_GETCOUNT
     }
     
     IconIndex(row,col:=1) { ; ListView
@@ -48,26 +50,31 @@ class gCtl extends gCtl.GuiControl { ; GuiControls - place custom methods() and 
         }
     }
     
-    GetItems() { ; ListBox, (ComboBox)
+    GetItems() { ; ListBox, ComboBox
         ctl := __current_gui_control, result := []
-        If (ctl.Type = "ListBox") {
+        If (ctl.Type = "ListBox" Or ctl.Type = "ComboBox") {
             Loop this.GetCount()
                 result.Push(this.GetText(A_Index))
             return result
         }
     }
     
-    GetText(p*) { ; ListView, TreeView, ListBox
+    GetText(p*) { ; ListView, TreeView, ListBox, ComboBox
         ctl := __current_gui_control
         If (ctl.Type = "TreeView" Or ctl.Type = "ListView")
             return ctl.GetText(p*)
-        Else If (ctl.Type = "ListBox") {
-            n := StrLen(Chr(0xFFFF))?2:1
-            size := SendMessage(0x018A, p[1]-1, 0, ctl.hwnd) ; LB_GETTEXTLEN
-            buf := BufferAlloc( (size*n) + n, 0 )
-            SendMessage(0x0189, p[1]-1, buf.ptr, ctl.hwnd) ; LB_GETTEXT
-            return StrGet(buf)
-        }
+        Else If (ctl.Type = "ListBox")
+            return this._GetString(0x18A,0x189,p*) ; 0x18A > LB_GETTEXTLEN // 0x189 > LB_GETTEXT
+        Else if (ctl.Type = "ComboBox")
+            return this._GetString(0x149,0x148,p*) ; 0x149 > CB_GETLBTEXTLEN // 0x148 > CB_GETLBTEXT
+    }
+    
+    _GetString(getLen_msg,get_msg,p*) {
+        ctl := __current_gui_control, n := StrLen(Chr(0xFFFF))?2:1
+        size := SendMessage(getLen_msg, p[1]-1, 0, ctl.hwnd) ; LB_GETTEXTLEN
+        buf := BufferAlloc( (size+1) * n, 0 )
+        SendMessage(get_msg, p[1]-1, buf.ptr, ctl.hwnd) ; LB_GETTEXT
+        return StrGet(buf)
     }
     
     class GuiControl {
@@ -95,24 +102,3 @@ class gCtl extends gCtl.GuiControl { ; GuiControls - place custom methods() and 
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
