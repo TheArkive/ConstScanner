@@ -13,6 +13,7 @@ Load them up with the menu:  Data > Load Constants
 * Setup this script with a compiler of your choice for checking constants (recommended MSVC BuildTools or GCC variant, like MinGW32/64 or TDGCC).
 * Easily compile constants into a small test program to check constant value from the compiler of your choice.
 * After scanning, a searchable Includes List is generated, showing child includes for each listed include.
+* Catalogs structs, enums, and #define entries.
 
 ## Details
 
