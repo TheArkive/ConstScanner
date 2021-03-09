@@ -28,7 +28,7 @@
         ctlEvent := ObjBindMethod(this,"event")
         this.ctlEvent := ctlEvent
         
-        ArkDebugObj := Gui.New("+Resize +AlwaysOnTop","TheArkyTekt Debug Window")
+        ArkDebugObj := Gui("+Resize +AlwaysOnTop","TheArkyTekt Debug Window")
         ArkDebugObj.OnEvent("close", this.guiClose)
         ArkDebugObj.OnEvent("size", this.guiSize)
         
@@ -59,7 +59,7 @@
         x := "", y := "", w := "", h := "", ctl := ""
         w := Width - 10, h := Height - 10 - 40
         ctl := g["EditBox"]
-        ctl.GetPos(x,y)
+        ctl.GetPos(&x,&y)
         ctl.Move(x,y,w,h)
     }
     
@@ -78,4 +78,8 @@
         Else If (ctl.Name = "Clear")
             ctl.gui["EditBox"].Value := ""
     }
+}
+
+dbg(in_str) {
+    OutputDebug "AHK: " in_str
 }

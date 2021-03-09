@@ -1,6 +1,6 @@
 load_gui() {
-    g := Gui.New("+OwnDialogs +Resize +MinSize1076x488","C++ Constants Scanner")
-    g.OnEvent("close","close_gui"), g.OnEvent("size","size_gui")
+    g := Gui("+OwnDialogs +Resize +MinSize1076x488","C++ Constants Scanner")
+    g.OnEvent("close",close_gui), g.OnEvent("size",size_gui)
     g.SetFont("s10","Consolas")
     
     g.Menubar := load_menubar()
@@ -8,39 +8,39 @@ load_gui() {
     g.SetFont("s10","Consolas")
     
     g.Add("Text","xm y+10","Name:")
-    g.Add("Edit","Section yp-4 x+2 w100 vNameFilter","").OnEvent("change","gui_events")
-    g.Add("Button","x+0 hp vNameFilterClear","X").OnEvent("click","gui_events")
-    g.Add("CheckBox","x+4 yp+4 vNameBW","Begins with").OnEvent("click","gui_events")
+    g.Add("Edit","Section yp-4 x+2 w100 vNameFilter","").OnEvent("change",gui_events)
+    g.Add("Button","x+0 hp vNameFilterClear","X").OnEvent("click",gui_events)
+    g.Add("CheckBox","x+4 yp+4 vNameBW","Begins with").OnEvent("click",gui_events)
     
     g.Add("Text","x+20 ys+4","Value:")
-    g.Add("Edit","Section yp-4 x+2 w100 vValueFilter","").OnEvent("change","gui_events")
-    g.Add("Button","x+0 hp vValueFilterClear","X").OnEvent("click","gui_events")
-    g.Add("CheckBox","x+4 yp+4 vValueEQ","Exact").OnEvent("click","gui_events")
+    g.Add("Edit","Section yp-4 x+2 w100 vValueFilter","").OnEvent("change",gui_events)
+    g.Add("Button","x+0 hp vValueFilterClear","X").OnEvent("click",gui_events)
+    g.Add("CheckBox","x+4 yp+4 vValueEQ","Exact").OnEvent("click",gui_events)
     
     g.Add("Text","x+20 ys+4","Expression:")
-    g.Add("Edit","Section yp-4 x+2 w100 vExpFilter","").OnEvent("change","gui_events")
-    g.Add("Button","x+0 hp vExpFilterClear","X").OnEvent("click","gui_events")
+    g.Add("Edit","Section yp-4 x+2 w100 vExpFilter","").OnEvent("change",gui_events)
+    g.Add("Button","x+0 hp vExpFilterClear","X").OnEvent("click",gui_events)
     
     ctl := g.Add("Button","x+15 h25 w65 vSearch","Search")
-    ctl.OnEvent("click","gui_events")
+    ctl.OnEvent("click",gui_events)
     ctl.SetFont("s8","Verdana")
     
     ctl := g.Add("Button","x+5 hp w85 vMoreFilters","More Filters")
-    ctl.OnEvent("click","gui_events")
+    ctl.OnEvent("click",gui_events)
     ctl.SetFont("s8","Verdana")
     
     ctl := g.Add("Button","x+0 hp w70 vReset","Reset All")
-    ctl.OnEvent("click","gui_events")
+    ctl.OnEvent("click",gui_events)
     ctl.SetFont("s8","Verdana")
     
     ctl := g.Add("Button","x+5 hp w65 vIncludes","Includes")
-    ctl.OnEvent("click","gui_events")
+    ctl.OnEvent("click",gui_events)
     ctl.SetFont("s8","Verdana")
     
     ctl := g.Add("ListView","xm y+5 w1051 h300 vConstList Checked",["Name","Value","Type","File","D","C"]) ; w1050
-    ctl.OnEvent("ContextMenu","gui_context")
+    ctl.OnEvent("ContextMenu",gui_context)
     ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,135), ctl.ModifyCol(4,200), ctl.ModifyCol(5,30), ctl.ModifyCol(6,30)
-    ctl.OnEvent("click","gui_events")
+    ctl.OnEvent("click",gui_events)
     
     ; g.Add("Text","xm y+5 vHelper","Press CTRL+D to copy selected constant details.")
     g.Add("Text","x500 y+5 w560 Right vFile","Data File:")
@@ -60,11 +60,11 @@ load_gui() {
     
     tabCtl.UseTab("Settings")
     ctl := g.Add("CheckBox","vAutoLoad Section","Auto-Load most recent file on start")
-    ctl.OnEvent("click","gui_events")
+    ctl.OnEvent("click",gui_events)
     ctl.Value := Settings["AutoLoad"]
     
     ctl := g.Add("CheckBox","ys xs+" ColW " vDisableTooltips","Disable Tooltips")
-    ctl.OnEvent("click","gui_events")
+    ctl.OnEvent("click",gui_events)
     ctl.Value := Settings["DisableTooltips"]
     
     ctl := g.Add("Text","xs y+10 Section","MSVC compiler environment command.")
@@ -72,19 +72,19 @@ load_gui() {
     ctl := g.Add("Text","ys xs+" ColW,"GCC compiler environment command.")
     ctl.SetFont("s8","Verdana")
     
-    g.Add("Radio","xs ys+25 vx64_MSVC_Sel Group","x64:").OnEvent("click","gui_events")
-    g.Add("Radio","xs y+10 vx86_MSVC_Sel","x86:").OnEvent("click","gui_events")
-    g.Add("Radio","xs+" ColW " yp-25 vx64_GCC_Sel","x64:").OnEvent("click","gui_events")
-    g.Add("Radio","xs+" CoLW " y+10 vx86_GCC_Sel","x86:").OnEvent("click","gui_events")
+    g.Add("Radio","xs ys+25 vx64_MSVC_Sel Group","x64:").OnEvent("click",gui_events)
+    g.Add("Radio","xs y+10 vx86_MSVC_Sel","x86:").OnEvent("click",gui_events)
+    g.Add("Radio","xs+" ColW " yp-25 vx64_GCC_Sel","x64:").OnEvent("click",gui_events)
+    g.Add("Radio","xs+" CoLW " y+10 vx86_GCC_Sel","x86:").OnEvent("click",gui_events)
     
     ; msgbox Settings["CompilerType"] " : " g[Settings["CompilerType"]].Value
     
     ; g[Settings["CompilerType"]].Value := 1
     
-    g.Add("Edit","xs+45 ys+22 w" width " vx64_MSVC",Settings["x64_MSVC"]).OnEvent("change","gui_events")
-    g.Add("Edit","xs+45 y+2 w" width " vx86_MSVC",Settings["x86_MSVC"]).OnEvent("change","gui_events")
-    g.Add("Edit","xs+" (ColW+45) " ys+22 w" width " vx64_GCC",Settings["x64_GCC"]).OnEvent("change","gui_events")
-    g.Add("Edit","xs+" (ColW+45) " y+2 w" width " vx86_GCC",Settings["x86_GCC"]).OnEvent("change","gui_events")
+    g.Add("Edit","xs+45 ys+22 w" width " vx64_MSVC",Settings["x64_MSVC"]).OnEvent("change",gui_events)
+    g.Add("Edit","xs+45 y+2 w" width " vx86_MSVC",Settings["x86_MSVC"]).OnEvent("change",gui_events)
+    g.Add("Edit","xs+" (ColW+45) " ys+22 w" width " vx64_GCC",Settings["x64_GCC"]).OnEvent("change",gui_events)
+    g.Add("Edit","xs+" (ColW+45) " y+2 w" width " vx86_GCC",Settings["x86_GCC"]).OnEvent("change",gui_events)
     
     tabCtl.UseTab()
     ctl := g.Add("Text","xm ys+90 w1050 vTotal","")
@@ -104,23 +104,25 @@ load_gui() {
 }
 
 size_gui(o, MinMax, gW, gH) {
-    If Settings.Has("gui") {
-        g := Settings["gui"]
+    ; Global Settings
+    ; If Settings.Has("gui") {
+        ; g := Settings["gui"]
         
-        g["ConstList"].Move(,,gW-25,gH-240)
-        g["Tabs"].Move(,gH-170,gW-25)
-        g["Tabs"].ReDraw()
-        g["Details"].Move(,,gW-25)
-        g["Duplicates"].Move(,,gW-25)
-        g["CritDep"].Move(,,gW-25)
+        o["ConstList"].Move(,,gW-25,gH-240)
+        o["Tabs"].Move(,gH-170,gW-25)
+        o["Tabs"].ReDraw()
+        o["Details"].Move(,,gW-25)
+        o["Duplicates"].Move(,,gW-25)
+        o["CritDep"].Move(,,gW-25)
         
-        g["File"].Move(,gH-190,gW-515)
-        g["File"].ReDraw()
-        g["Total"].Move(,gH-20,gW-25)
-    }
+        o["File"].Move(,gH-190,gW-515)
+        o["File"].ReDraw()
+        o["Total"].Move(,gH-20,gW-25)
+    ; }
 }
 
 close_gui(*) {
+    Global Settings
     Settings["ApiPath"] := "" ; these values are meant to be temporary, but need to be accessed globally
     Settings["BaseSearchDir"] := ""
     Settings["DefaultIncludes"] := Map()
@@ -137,9 +139,9 @@ close_gui(*) {
 }
 
 gui_context(ctl, Item, rc, X, Y) {
-    m := Menu.New()
-    m.Add("&Copy Constants (group)","ListView_MenuEvent")
-    m.Add("Copy Constant Details (single - &Focused)","ListView_MenuEvent")
+    m := Menu()
+    m.Add("&Copy Constants (group)",ListView_MenuEvent)
+    m.Add("Copy Constant Details (single - &Focused)",ListView_MenuEvent)
     m.Show()
 }
 
@@ -151,8 +153,10 @@ ListView_MenuEvent(ItemName, ItemPos, Menu) {
 }
 
 gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
+    Global Settings, const_list
     n := ctl.Name
-    g := Settings["gui"]
+    ; g := Settings["gui"]
+    g := ctl.gui
     
     If (n = "Includes") {
         incl_report()
@@ -270,12 +274,13 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
 }
 
 recents_menu() {
-    mb_recent := menu.new(), Settings["recent_handle"] := mb_recent.handle
-    mb_recent.Add("Clear &Recents","menu_events")
-    mb_recent.Add("&Edit Recents","menu_events")
+    Global Settings
+    mb_recent := menu(), Settings["recent_handle"] := mb_recent.handle
+    mb_recent.Add("Clear &Recents",menu_events)
+    mb_recent.Add("&Edit Recents",menu_events)
     mb_recent.Add()
     For file_name in Settings["Recents"] {
-        mb_recent.Add(file_name,"menu_events")
+        mb_recent.Add(file_name,menu_events)
         If (file_name = Settings["ApiPath"])
             mb_recent.Check(file_name)
     }
@@ -284,52 +289,53 @@ recents_menu() {
 }
 
 load_menubar() {
-    mb_source := menu.new()
-    mb_source.Add("Source &File","menu_events") ; "Source" > "Select C++ Source" submenu
-    mb_source.Add("Source &Directory","menu_events")
-    mb_source.Add("&Create Collection","menu_events")
+    Global Settings
+    mb_source := menu()
+    mb_source.Add("Source &File",menu_events) ; "Source" > "Select C++ Source" submenu
+    mb_source.Add("Source &Directory",menu_events)
+    mb_source.Add("&Create Collection",menu_events)
     
-    mb_scan := menu.new()                       ; "Source" > "Scanning" submenu
-    mb_scan.Add("&Scan Now","menu_events")
+    mb_scan := menu()                       ; "Source" > "Scanning" submenu
+    mb_scan.Add("&Scan Now",menu_events)
     mb_scan.Add()
-    mb_scan.Add("Select Scan Type:","menu_events")
+    mb_scan.Add("Select Scan Type:",menu_events)
     mb_scan.Disable("Select Scan Type:")
-    mb_scan.Add("C&ollect","menu_events","+Radio")
-    mb_scan.Add("&Includes Only","menu_events","+Radio")
+    mb_scan.Add("C&ollect",menu_events,"+Radio")
+    mb_scan.Add("&Includes Only",menu_events,"+Radio")
     mb_scan.Check(Settings["ScanType"])
     
-    mb_src := menu.new()                        ; "Source" root menu
-    mb_src.Add("&New Profile","menu_events")
+    mb_src := menu()                        ; "Source" root menu
+    mb_src.Add("&New Profile",menu_events)
     mb_src.Add("&Load Recent", recents_menu())
-    mb_src.Add("&Edit Profile","menu_events")
+    mb_src.Add("&Edit Profile",menu_events)
     mb_src.Add()
     mb_src.Add("S&canning", mb_scan)
     
-    mb_data := menu.new()                       ; "Data" root menu
-    mb_data.Add("&Load constants","menu_events")
-    mb_data.Add("&Save constants","menu_events")
+    mb_data := menu()                       ; "Data" root menu
+    mb_data.Add("&Load constants",menu_events)
+    mb_data.Add("&Save constants",menu_events)
     
-    mb_copy := menu.new()                       ; "List" root menu
-    mb_copy.Add("Copy &selected constant details (single - CTRL+SHIFT+D)","menu_events")
-    mb_copy.Add("Copy selected constant &name only (single - CTRL+D)","menu_events")
+    mb_copy := menu()                       ; "List" root menu
+    mb_copy.Add("Copy &selected constant details (single - CTRL+SHIFT+D)",menu_events)
+    mb_copy.Add("Copy selected constant &name only (single - CTRL+D)",menu_events)
     mb_copy.Add()
-    mb_copy.Add("&Copy selected constants (group)","menu_events")
+    mb_copy.Add("&Copy selected constants (group)",menu_events)
     mb_copy.Add()
-    mb_copy.Add("&var := value","menu_events","+Radio")
-    mb_copy.Add("var &only","menu_events","+Radio")
+    mb_copy.Add("&var := value",menu_events,"+Radio")
+    mb_copy.Add("var &only",menu_events,"+Radio")
     
     var_cpy := (Settings.Has("var_copy")) ? Settings["var_copy"] : "&var := value"
     mb_copy.Check(var_cpy)
     
-    mb_compile := menu.new()                    ; "Compile" root menu
-    mb_compile.Add("&Uncheck all constants","menu_events")
-    mb_compile.Add("&Add #INCLUDES for checked constants","menu_events")
+    mb_compile := menu()                    ; "Compile" root menu
+    mb_compile.Add("&Uncheck all constants",menu_events)
+    mb_compile.Add("&Add #INCLUDES for checked constants",menu_events)
     mb_compile.Add()
-    mb_compile.Add("&Compile and test checked constants","menu_events")
+    mb_compile.Add("&Compile and test checked constants",menu_events)
     If Settings["AddIncludes"]
         mb_compile.Check("&Add #INCLUDES for checked constants")
     
-    mb := Menubar.New()
+    mb := Menubar()
     mb.Add("&Source", mb_src)
     mb.Add("&Data", mb_data)
     mb.Add("&List", mb_copy)
@@ -339,6 +345,7 @@ load_menubar() {
 }
 
 menu_events(ItemName, ItemPos, _o) {
+    Global Settings
     n := ItemName, g := Settings["gui"]
     
     
@@ -408,7 +415,7 @@ menu_events(ItemName, ItemPos, _o) {
         }
         
         create_cpp_file()
-        RegExMatch(Settings["CompilerType"],"^(x86|x64)_(MSVC|GCC)",m)
+        RegExMatch(Settings["CompilerType"],"^(x86|x64)_(MSVC|GCC)",&m)
         
         If (IsObject(m) And m.Count() = 2) {
             If (m.Value(2) = "MSVC")
@@ -425,6 +432,7 @@ menu_events(ItemName, ItemPos, _o) {
 }
 
 scan_now() {
+    Global Settings
     If !Settings["ApiPath"] {
         Msgbox "Select a C++ Source Header file first."
         return
@@ -493,12 +501,12 @@ copy_const_group() {
 }
 
 result_gui(txt) {
-    _gui := Gui.New("-MinimizeBox -MaximizeBox +AlwaysOnTop","Compiler Output")
-    _gui.OnEvent("escape","result_close")
+    _gui := Gui("-MinimizeBox -MaximizeBox +AlwaysOnTop","Compiler Output")
+    _gui.OnEvent("escape",result_close)
     
     _gui.Add("Edit","w500 r10 ReadOnly",txt)
     _gui.Add("Text","","Press ESC or close to exit.")
-    _gui.Add("Button","w50 yp xp+450 vClose","Close").OnEvent("click","result_close2")
+    _gui.Add("Button","w50 yp xp+450 vClose","Close").OnEvent("click",result_close2)
     _gui.Show("")
     _gui["Close"].Focus()
 }

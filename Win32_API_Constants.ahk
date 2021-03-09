@@ -77,8 +77,8 @@ If (Settings["AutoLoad"] And FileExist(Settings["LastFile"])) { ; load data if A
     Settings["gui"]["File"].Value := "File: " Settings["LastFile"]
 }
 
-OnMessage(0x0100,"WM_KEYDOWN") ; WM_KEYDOWN
-OnMessage(0x0200,"WM_MOUSEMOVE") ; WM_MOUSEMOVE
+OnMessage(0x0100,WM_KEYDOWN) ; WM_KEYDOWN
+OnMessage(0x0200,WM_MOUSEMOVE) ; WM_MOUSEMOVE
 
 return ; end auto-exec section
 
@@ -147,6 +147,7 @@ listFiles() {
 }
 
 LoadFile(selFile:="") {
+    Global Settings, const_list, IncludesList
     If (selFile != "" And !FileExist(selFile)) {
         msgbox "Previous loaded file no longer exist.`r`n`r`nLoad failed."
         return
@@ -154,7 +155,7 @@ LoadFile(selFile:="") {
         selFile := FileSelect("1",A_ScriptDir "\data\","Load Constant File:","Data file (*.data)")
         If (!selFile) ; user cancelled
             return
-        SplitPath selFile,,,ext
+        SplitPath selFile,,,&ext
         If (ext != "data") Or (!FileExist(selFile)) {
             Msgbox "You must select a *.data file."
             return
@@ -163,7 +164,7 @@ LoadFile(selFile:="") {
     
     Settings["gui"]["Details"].Value := "", Settings["gui"]["Duplicates"].Value := ""
     UnlockGui(false)
-    SplitPath selFile, fileName,,,profName
+    SplitPath selFile, &fileName,,,&profName
     Settings["gui"]["Total"].Value := "Loading data file.  Please Wait ..."
     
     fileData := FileRead(selFile)
@@ -188,13 +189,14 @@ LoadFile(selFile:="") {
 }
 
 SaveFile() {
+    Global Settings, const_list, IncludesList
     If !Settings["ApiPath"] {
         Msgbox "Load / Create a profile first, then perform a scan."
         return
     }
     
     lastFile := Settings["LastFile"]
-    SplitPath lastFile, lastName
+    SplitPath lastFile, &lastName
     saveFile := FileSelect("S 18",A_ScriptDir "\data\" Settings["ApiPath"] ".data","Save Data File:")
     
     If (saveFile) {
@@ -212,12 +214,13 @@ SaveFile() {
         MsgBox "Data file successfully saved."
         UnlockGui(true)
         
-        SplitPath saveFile, fileName
+        SplitPath saveFile, &fileName
         Settings["gui"]["File"].Value := "Data File: " fileName
     }
 }
 
 UnlockGui(bool) {
+    Global Settings
     g := Settings["gui"]
     g["NameFilter"].Enabled := bool
     g["NameFilterClear"].Enabled := bool
@@ -245,6 +248,7 @@ UnlockGui(bool) {
 }
 
 relist_const() {
+    Global Settings, filteredList, prog, const_list
     Static q := Chr(34)
     Static oopsStr := "\|(){}[]-+^$&%?.,<>" q
     
@@ -297,8 +301,8 @@ relist_const() {
     fFilter := StrReplace(fFilter,"*",".*")
     
     If (prog != "") And IsObject(prog)
-        prog.Range("0-" const_list.Count), prog.Title("Loading..."), prog.Update(0," "," ")
-    Else prog := progress2.New(0,const_list.Count,"title:Loading...,parent:" g.hwnd)
+        prog.Range("0-" const_list.Count), prog.SetTitle("Loading..."), prog.Update(0," "," ")
+    Else prog := progress2(0,const_list.Count,"title:Loading...,parent:" g.hwnd)
     
     do_all := (!n_fil And !v_fil And !e_fil And !f_fil) ? true : false
     
@@ -349,7 +353,7 @@ relist_const() {
         Settings["doReset"]:=false
         g["NameFilter"].Focus()
     }
-    prog.close(), prog := ""
+    prog := ""
 }
 
 filter_check(hwnd) {
@@ -374,6 +378,7 @@ up_down_nav(key) {
 ^d::copy_const_only()
 
 F2::{
+    Global const_list
     critList := "", i := 0
     For const, obj in const_list {
         If obj.has("critical") And obj["critical"].Count > 0 {

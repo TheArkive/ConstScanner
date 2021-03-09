@@ -42,14 +42,14 @@ eval(e,test:=false) { ; extend support for parenthesis
     Else If (test)
         return !RegExMatch(Trim(e),"i)(^[^\d!~\-\x28]|! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])") ; only return true/false testing "e" as expression
     
-    If RegExMatch(e,"i)(! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
+    If RegExMatch(e,"i)(! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",&m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
         throw Exception("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34) "`r`n`r`nExpression: " e,,"Not a math expression.")
     
-    StrReplace(e,"(","(",,LP), StrReplace(e,")",")",,RP)
+    StrReplace(e,"(","(",,&LP), StrReplace(e,")",")",,&RP)
     If (LP != RP)
         throw Exception("Invalid grouping with parenthesis.  You must ensure the same number of ( and ) exist in the expression.`r`n`r`nExpression:`r`n    " e)
     
-    While RegExMatch(e, "i)(\x28[^\x28\x29]+\x29)", m) {                ; match phrase surrounded by parenthesis, inner-most first
+    While RegExMatch(e, "i)(\x28[^\x28\x29]+\x29)", &m) {                ; match phrase surrounded by parenthesis, inner-most first
         ans := _eval(match := m.value(0))                               ; match and calculate result
         ans := (SubStr(ans,1,1) = "-") ? " " ans : ans                  ; sub resolved value, add space for legit negative sign " -#"
         e := RegExReplace(StrReplace(e,match,ans,,,1),"(!|~) +","$1")   ; perform substitution, remove resulting spaces between !/~ and resolved value
@@ -64,7 +64,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
         return e
     
     Static q := Chr(34)
-    If RegExMatch(e,"i)(^[^\d!~\-\x28]|! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
+    If RegExMatch(e,"i)(^[^\d!~\-\x28]|! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",&m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
         throw Exception("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34),,"Not a math expression.")
     
     Static _n   := "(?:\d+\.\d+(?:e\+\d+|e\-\d+|e\d+)?|0x[\dA-F]+|\d+)"  ; Regex to identify float/scientific notation, then hex, then base-10 numbers.  Only positive.
@@ -73,7 +73,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
     
     new_e := "", p := 1, prev_m := ""
     typ := "number", expr := _num           ; Start looking for a number first.
-    While RegExMatch(e,"i)" expr,_m,p) {    ; Separate numbers and operators (except !/~ operators) with spaces.
+    While RegExMatch(e,"i)" expr,&_m,p) {    ; Separate numbers and operators (except !/~ operators) with spaces.
         mat := _m.Value(0)                  ; Capture match pattern.  Pattern starts with "number" / alternates with "oper".
         If (typ="number") {                 ; Alternate the RegEx search between numbers and operators to improve grouping/spacing of the expression.
             If InStr(_m.Value(1), "--")     ; Check for improper "--" in prefix.
@@ -112,7 +112,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
                 Static rg_ex2 := "([#!~]*" _n ")( *\*\* *)?"    ; RegEx for number and maybe exponent (**) for 2nd+ iteration in next WHILE loop.
                 rg_ex := rg_ex1
                 
-                While (r := RegExMatch(e,"i)" rg_ex,z,p)) {     ; Extract expr before resolving, because this needs to be right-to-left.
+                While (r := RegExMatch(e,"i)" rg_ex,&z,p)) {     ; Extract expr before resolving, because this needs to be right-to-left.
                     (z.Value(2) = "") ? fail_count++ : ""       ; Increment fail count when "**" not found.  fail_count = 1 means the end of a sub-expr, but there may be more.
                     p := z.Pos(0) + z.Len(0)                    ; Adjust search position.
                     sub_e .= z.Value(0)                         ; Append valid match to sub_e.
@@ -121,7 +121,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
                     
                     If (fail_count = 1 And InStr(sub_e,"**")) { ; ****** End of exponenent expression, so evalute and replace. ******
                         new_sub_e := sub_e
-                        While RegExMatch(new_sub_e,"i)([#!~]*)?(" _n ") *(\*\*) *([#!~]*" _n ")$",y) { ; Get last 2 operands and operator with any unary - ! or ~.
+                        While RegExMatch(new_sub_e,"i)([#!~]*)?(" _n ") *(\*\*) *([#!~]*" _n ")$",&y) { ; Get last 2 operands and operator with any unary - ! or ~.
                             mat := y.Value(0)                   ; Capture full match.
                             o_op := y.Value(1)                  ; Outside operators must be solved last, ie. -2 ** 3 is -(2 ** 3).
                             v1 := y.Value(2)                    ; First operand.
@@ -137,7 +137,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
                         
                         ; msgbox "v1: " v1 "`r`nv2: " v2 "`r`nval2: " val2 "`r`n`r`ne: " e "`r`n`r`nsub_e: " sub_e "`r`n`r`nnew_sub_e: " new_sub_e
                         
-                        RegExMatch(val2,"([\-!~]*)?(" _n ")",y) ; Check for "-" to convert to "#".
+                        RegExMatch(val2,"([\-!~]*)?(" _n ")",&y) ; Check for "-" to convert to "#".
                         If (IsObject(y) And InStr(y.Value(1),"-"))
                             val2 := StrReplace(y.Value(1),"-","#") y.Value(2)
                         e := StrReplace(e,sub_e,new_sub_e,,,1) ; Replace only the first instance of the match.  Maintain "#" sub for "-".
@@ -149,7 +149,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
                     (A_Index = 1) ? rg_ex := rg_ex2 : ""        ; Switch to new search right before 2nd iteration.
                 }
             Case "!~":
-                While (r := RegExMatch(e,"i)(!|\~)" n,z)) {     ; Find "inner most" expression and solve first.
+                While (r := RegExMatch(e,"i)(!|\~)" n,&z)) {     ; Find "inner most" expression and solve first.
                     _op  := z.Value(1)
                     _mat := z.Value(0)
                     v1 := StrReplace(SubStr(_mat,2),"#","-")     ; Omit regex stored operator (! or ~) and convert "#" to "-".
@@ -174,7 +174,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
                         Case "&^|": op_reg := "\&|\^|\|"
                     }
                     
-                    While (r := RegExMatch(e,"i)(" n ") +(" op_reg ") +(" n ")",z)) {
+                    While (r := RegExMatch(e,"i)(" n ") +(" op_reg ") +(" n ")",&z)) {
                         o := z.value(2)
                         v1 := StrReplace(z.value(1),"#","-"), v2 := StrReplace(z.value(3),"#","-")
                         

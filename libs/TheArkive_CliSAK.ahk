@@ -289,7 +289,7 @@ CliData(inCommand:="") {
     If (!inCommand)
         return ""
     Else {
-        cli_session := cli.New(inCommand,"mode:r","cmd","/Q /K")  ; run command, prune prompt
+        cli_session := cli(inCommand,"mode:r","cmd","/Q /K")  ; run command, prune prompt
         result := ""
         
         While !cli_session.batchProgress
@@ -315,7 +315,7 @@ class cli {
         this.env := (!FileExist(env)) ? this.check_exe(env) : env
         this.params := params
         
-        this.batchCmdLines := this.shellCmdLines(sCmd,firstCmd,batchCmd)        ; ByRef firstCmd / ByRef batchCmd ; isolate 1st line command
+        this.batchCmdLines := this.shellCmdLines(sCmd,&firstCmd,&batchCmd)        ; ByRef firstCmd / ByRef batchCmd ; isolate 1st line command
         this.sCmd := sCmd, q := Chr(34), optGrp := StrSplit(options,"|")        ; next load specified properties (options param)
         For i, curItem in optGrp
             optItem := StrSplit(curItem,":"), this.%optItem[1]% := optItem[2]   ; write options to "this"
@@ -354,18 +354,18 @@ class cli {
         
         hStdInRd := 0, hStdInWr := 0, hStdOutRd := 0, hStdOutWr := 0, hStdErrRd := 0, hStdErrWr := 0 ; init handles
         
-        r1 := DllCall("CreatePipe","Ptr*",hStdInRd,"Ptr*",hStdInWr,"Uint",0,"Uint",0) ; get handle - stdIn (R/W)
+        r1 := DllCall("CreatePipe","Ptr*",&hStdInRd,"Ptr*",&hStdInWr,"Uint",0,"Uint",0) ; get handle - stdIn (R/W)
         r2 := DllCall("SetHandleInformation","Ptr",hStdInRd,"Uint",1,"Uint",1)            ; set flags inherit - stdIn
         this.hStdIn := hStdInWr, this.hStdOut := 0
         
         If (!this.m) {
-            r1 := DllCall("CreatePipe","Ptr*",hStdOutRd,"Ptr*",hStdOutWr,"Uint",0,"Uint",0) ; get handle - stdOut (R/W)
+            r1 := DllCall("CreatePipe","Ptr*",&hStdOutRd,"Ptr*",&hStdOutWr,"Uint",0,"Uint",0) ; get handle - stdOut (R/W)
             r2 := DllCall("SetHandleInformation","Ptr",hStdOutWr,"Uint",1,"Uint",1)            ; set flags inherit - stdOut ;ZZZ
             this.hStdOut := hStdOutRd
         }
         
         If (InStr(this.mode,"x")) {
-            r1 := DllCall("CreatePipe","Ptr*",hStdErrRd,"Ptr*",hStdErrWr,"Uint",0,"Uint",0) ; stdErr pipe on mode "x"
+            r1 := DllCall("CreatePipe","Ptr*",&hStdErrRd,"Ptr*",&hStdErrWr,"Uint",0,"Uint",0) ; stdErr pipe on mode "x"
             r2 := DllCall("SetHandleInformation","Ptr",hStdErrWr,"Uint",1,"Uint",1)
         }
         this.hStdErr := InStr(this.mode,"x") ? hStdErrRd : hStdOutRd
@@ -476,7 +476,10 @@ class cli {
     }
     sGet() { ; stream-Get (timer) - collects until process exits AND buffer is empty
         batchCmd := Trim(this.batchCmd," `r`n`t"), prompt := "", stream := this.stream
-        SOcb := this.StdOutCallback, QuitCallback := this.QuitCallback
+        cbStdOut := false, cbQuit := false
+        
+        Try cbQuit := (Type(%this.QuitCallback%) != "String") ? %this.QuitCallback% : false
+        Try cbStdOut := (Type(%this.StdOutCallback%) != "String") ? %this.StdOutCallback% : false
         
         buf := (!this.m) ? this.fStdOut.read() : this.mGet() ; check StdOut buffer
         this.getStdErr()                                        ; check StdErr buffer
@@ -492,15 +495,15 @@ class cli {
                 prompt := this.getPrompt(buf,true), buf := this.removePrompt(buf,prompt)           ; isolate prompt from buffer
                 buf := RegExReplace(buf,"^\Q" this.lastCmd "\E","")
                 
-                If (this.QuitString And RegExMatch(Trim(buf,"`r`n`t"),"\Q" this.QuitString "\E$") And IsFunc(QuitCallback)) {
-                    %QuitCallback%(this.QuitString,this.ID,this) ; check for QuitString before prompt is added
+                If (this.QuitString And RegExMatch(Trim(buf,"`r`n`t"),"\Q" this.QuitString "\E$") And cbQuit) {
+                    cbQuit(this.QuitString,this.ID,this) ; check for QuitString before prompt is added
                     this.close()
                     return
                 }
                 
                 (!this.m) ? this.stdout .= "`r`n" buf : this.stdout := buf ; write/append buffer to .stdout
                 
-                (IsFunc(SOcb)) ? %SOcb%(buf,this.ID,this) : ""  ; trigger StdOut callback
+                (cbStdOut) ? cbStdOut(buf,this.ID,this) : ""  ; trigger StdOut callback
                 (prompt) ? this.promptEvent(prompt) : ""           ; trigger prompt casllback
             } 
         }
@@ -524,10 +527,13 @@ class cli {
         }
     }
     promptEvent(prompt) {
-        PromptCallback := this.PromptCallback
+        cbPrompt := false
+        Try cbPrompt := (Type(%this.PromptCallback%) != "String") ? %this.PromptCallback% : false
+        
         (this.ready) ? this.batchProgress += 1 : "" ; increment batchProgress / when this is 1, the first command has been completed.
         this.stdout := Trim(this.stdout,"`r`n")
-        (IsFunc(PromptCallback)) ? %PromptCallback%(prompt,this.ID,this) : ""   ; trigger callback function
+        
+        (cbPrompt) ? cbPrompt(prompt,this.ID,this) : ""   ; trigger callback function
         
         (!this.ready) ? (this.ready := true) : ""           ; set ready after first prompt
         (this.batchCmd) ? this.write(this.batchCmd) : ""    ; write next command in batch, if any
@@ -548,7 +554,7 @@ class cli {
         While !this.ready
             Sleep this.delay ; Ensure commands are not sent until initial prompt is complete, indicating CLI session is ready.
         
-        cmdLines := this.shellCmdLines(sInput,firstCmd,batchCmd) ; ByRef firstCmd / ByRef batchCmd
+        cmdLines := this.shellCmdLines(sInput,&firstCmd,&batchCmd) ; ByRef firstCmd / ByRef batchCmd
         this.lastCmd := firstCmd, this.batchCmd := batchCmd, this.cmdHistory .= firstCmd "`r`n" ; this.firstCmd := firstCmd
         
         androidRegEx := "i)^((.*[ ])?adb (-a |-d |-e |-s [a-zA-Z0-9]*|-t [0-9]+|-H |-P |-L [a-z0-9:_]*)?[ ]?shell)$"
@@ -607,23 +613,23 @@ class cli {
         
         If (this.shell = "windows" And RegExMatch(str,"\r\n>>$")) {
             result := ">>"
-        } Else If (RegExMatch(str,netshRegEx,match)) {
+        } Else If (RegExMatch(str,netshRegEx,&match)) {
             result := match.Count() ? match.Value(1) : ""
             If (chEnv)
                 this.shell := "netsh", this.shellMatch := match.Value(1)
-        } Else If (RegExMatch(str,telnetRegEx,match)) {
+        } Else If (RegExMatch(str,telnetRegEx,&match)) {
             result := match.Count() ? match.Value(1) : ""
             If (chEnv)
                 this.shell := "telnet"
-        } Else If (RegExMatch(str,winRegEx,match)) {
+        } Else If (RegExMatch(str,winRegEx,&match)) {
             result := match.Count() ? match.Value(1) : ""
             If (chEnv)
                 this.shell := "windows", this.shellMatch := match.Value(1)
-        } Else If (RegExMatch(str,androidRegEx,match)) {
+        } Else If (RegExMatch(str,androidRegEx,&match)) {
             result := match.Count() ? match.Value(1) : ""
             If (chEnv)
                 this.shell := "android", this.shellMatch := match.Value(1)
-        } Else If (RegExMatch(str,sshRegEx,match)) {
+        } Else If (RegExMatch(str,sshRegEx,&match)) {
             result := match.Count() ? match.Value(1) : ""
             If (chEnv)
                 this.shell := "ssh", this.shellMatch := match.Value(1)
@@ -657,7 +663,7 @@ class cli {
         Else
             return ""
     }
-    shellCmdLines(str, ByRef firstCmd, ByRef batchCmd) {
+    shellCmdLines(str, &firstCmd, &batchCmd) {
         firstCmd := "", batchCmd := "", str := Trim(str," `t`r`n"), i := 0
         Loop Parse str, "`n", "`r"
         {

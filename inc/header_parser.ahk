@@ -1,4 +1,5 @@
 includes_report() {
+    Global Settings, IncludesList, const_list
     Static q := Chr(34)
     
     prof := Settings["Recents"][Settings["ApiPath"]]
@@ -57,7 +58,7 @@ includes_report() {
             }
             
             constValue := "" ; init value
-            If (RegExMatch(curLine,"i)^\#include[ `t]+(<|\" q ")?([^>" q "]+)(>|\" q ")?",m)) { ; include line
+            If (RegExMatch(curLine,"i)^\#include[ `t]+(<|\" q ")?([^>" q "]+)(>|\" q ")?",&m)) { ; include line
                 match := StrReplace(StrReplace(m.Value(2),q,""),"/","\")
                 
                 If !(cur_incl := get_full_path(match,baseFolders)) {
@@ -92,6 +93,7 @@ prune_comments(inText) {
 }
 
 header_parser() {
+    Global Settings, IncludesList, const_list, prog
     Static q := Chr(34)
     
     prof := Settings["Recents"][Settings["ApiPath"]]
@@ -124,7 +126,7 @@ header_parser() {
         }
     }
     
-    prog := progress2.New(0,includes_list.Length,"title:Scanning files...,parent:" Settings["gui"].hwnd) ; counter was fCount
+    prog := progress2(0,includes_list.Length,"title:Scanning files...,parent:" Settings["gui"].hwnd) ; counter was fCount
     Static rg1 := "i)^\#include[ `t]+(<|\" q ")([^>" q "]+)(>|\" q ")"
     Static rg2 := "i)^#define[ `t]+(\w+)[ `t]+(.+)"
     Static rg3 := "i)^[ `t]*(?:(typedef|enum|struct))"
@@ -141,7 +143,7 @@ header_parser() {
             msgbox "FILE DOES NOT EXIST:`r`n    " fullPath
         
         IncludesList[StrReplace(fullPath,"\","|")] := []
-        SplitPath fullPath, file_name
+        SplitPath fullPath, &file_name
         
         prog.Update(A_Index,A_Index " of " includes_list.Length,file_name,"0-" includes_list.Length)
         
@@ -158,7 +160,7 @@ header_parser() {
             }
             
             constValue := "" ; init value
-            If (RegExMatch(curLine,rg1,m)) { ; include line
+            If (RegExMatch(curLine,rg1,&m)) { ; include line
                 match := StrReplace(StrReplace(m.Value(2),q,""),"/","\")
                 
                 If !(cur_incl := get_full_path(match,baseFolders)) {
@@ -169,12 +171,12 @@ header_parser() {
                 If (Trim(cur_incl," `t") != "")
                     IncludesList[StrReplace(fullPath,"\","|")].Push([match,cur_incl])   ; Main IncludesList
                 
-            } Else If (RegExMatch(curLine,rg2,m)) { ; match constants
+            } Else If (RegExMatch(curLine,rg2,&m)) { ; match constants
                 constName := m.Value(1), constExp := m.Value(2)
                 lineNum := cnt
                 
                 comment := ""
-                If (RegExMatch(constExp,"([ `t]*//.*|[ `t]*/\*.*)",m2)) {
+                If (RegExMatch(constExp,"([ `t]*//.*|[ `t]*/\*.*)",&m2)) {
                     comment := Trim(m2.Value(0)," `t")
                     constExp := prune_comments(constExp)
                 }
@@ -207,20 +209,20 @@ header_parser() {
                     cType := "String"
                 
                 commit_item(constName,Map("exp",constExp,"comment",comment,"file",file_name,"line",lineNum,"value",constExp,"type",cType))
-            } Else If (RegExMatch(curLine,rg3,m)) {
+            } Else If (RegExMatch(curLine,rg3,&m)) {
                 lineNum := cnt, full := "" ; full = full body text of ENUM or STRUCT
                 cL := prune_comments(curLine)
                 
                 If RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+[a-z0-9_\*]+[ `t]+[a-z0-9_\*]+;$") {
                     cnt++
                     Continue
-                } Else If RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)[ `t]*\x7B.*?\x7D;$",m) {
+                } Else If RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)[ `t]*\x7B.*?\x7D;$",&m) {
                     full := m.Value(0), constType := StrUpper(m.Value(1),"T"), constName := m.Value(2)
-                } Else If ( RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)(?:[ `t]*\x7B)?$",m)
+                } Else If ( RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)(?:[ `t]*\x7B)?$",&m)
                          Or RegExMatch(td:=cL,"i)^[ `t]*(?:typedef|enum|struct)[ `t]*$") ) {
                     
                     If (td) {
-                        RegExMatch(fArr[cnt+1],"i)^[ `t]*(enum|struct)[ `t]+([a-z0-9_]+)",m)
+                        RegExMatch(fArr[cnt+1],"i)^[ `t]*(enum|struct)[ `t]+([a-z0-9_]+)",&m)
                         full := "typedef"
                         If (!IsObject(m) Or m.Count() = 0) {
                             cnt++
@@ -249,7 +251,7 @@ header_parser() {
                         full .= "`r`n" nextLine
                         full_no_comment .= "`r`n" nextLine_no_comment
                         
-                        StrReplace(full_no_comment,"{","{",,encL), StrReplace(full_no_comment,"}","}",,encR)
+                        StrReplace(full_no_comment,"{","{",,&encL), StrReplace(full_no_comment,"}","}",,&encR)
                         
                         If RegExMatch(full_no_comment,"i)[ `t]*\x7D([`r`n `ta-z0-9_\,\*/]+)?;$") And (encL = encR) ; ender for enum|struct
                             Break
@@ -279,7 +281,7 @@ header_parser() {
     
     reparse6()
     ; prog.Close(), prog := ""
-    prog.Title("Preparing to reload list...")
+    prog.SetTitle("Preparing to reload list...")
     prog.Update(0," "," ","0-100")
     
     ; A_Clipboard := jxon_dump(IncludesList,4)
@@ -287,6 +289,7 @@ header_parser() {
 }
 
 commit_item(constName,item) {
+    Global const_list
     If (!const_list.Has(constName))
         const_list[constName] := item
     Else If checkDupeConst(const_list[constName],item) {
@@ -296,6 +299,7 @@ commit_item(constName,item) {
 }
 
 create_cpp_file() {
+    Global Settings
     Static q := Chr(34)
     
     inc_list := Settings["Recents"][Settings["ApiPath"]]["OtherDirList"]
@@ -306,14 +310,14 @@ create_cpp_file() {
             def_inc.Push(item[3])
     }
     
-    For file_name in def_inc {
-        ; SplitPath file, fileName
-        For bFolder in BaseFolders {
-            If InStr(file_name,bFolder) {
-                file_name := StrReplace(file_name,bFolder "\","")
-                Break
-            }
-        }
+    For _file in def_inc {
+        SplitPath _file, &file_Name
+        ; For bFolder in BaseFolders {
+            ; If InStr(file_name,bFolder) {
+                ; file_name := StrReplace(file_name,bFolder "\","")
+                ; Break
+            ; }
+        ; }
         cppFile := "#include <iostream>`r`n#include <" file_name ">`r`n" ; was rootFile
     }
     
@@ -350,9 +354,10 @@ create_cpp_file() {
 ; ============================================================================================
 
 reparse1a(pass) { ; constants that point to a single constant / any type
+    Global const_list, prog
     t := 0, list := ""
     ; prog := progress2.New(0, const_list.Count, "title:Calculating Constants...,parent:" g.hwnd)
-    prog.Title("Calculating Constants..."), prog.Range("0-" const_list.Count)
+    prog.SetTitle("Calculating Constants..."), prog.Range("0-" const_list.Count)
     prog.Update(0,"Pass #" pass)
     
     For const, obj in const_list {
@@ -381,6 +386,7 @@ reparse1a(pass) { ; constants that point to a single constant / any type
 }
 
 do_subs(obj,const:="") {
+    Global const_list
     Static casting := "HRESULT|NTSTATUS|BCRYPT_ALG_HANDLE|ULONGLONG|LONGLONG|ULONG64|ULONG|LONG64|LONG32|LONG|long|float|LHANDLE|HANDLE|BYTE|ARGB|DISPID|HBITMAP|u_long|" ; long
                     . "BOOKMARK|DWORD64|DWORD32|DWORD|WORD|USHORT|SHORT|UINT64|UINT32|UINT16|UINT8|UINT|INT64|INT32|INT16|INT8|INT|int|CHAR|LPTSTR|LPSTR|LPCSTR|LPCTSTR|HWND|"
                     . "D3DRENDERSTATETYPE|D3DTRANSFORMSTATETYPE|D3DTEXTURESTAGESTATETYPE|D3DVERTEXBLENDFLAGS|HFILE|HCERTCHAINENGINE|HINSTANCE|unsigned long|"
@@ -402,7 +408,7 @@ do_subs(obj,const:="") {
     newPos := 1
     
     Static rgx := "([_A-Z][\w_]+\x28?)" ; "((?<!\d)[A-Z_][\w]+)"
-    r := RegExMatch(cValue,"i)" rgx,m), match := ""
+    r := RegExMatch(cValue,"i)" rgx,&m), match := ""
     (IsObject(m) And m.Count()) ? match := m.Value(1) : "" ; attempt to capture first match
     
     ; =============================================
@@ -456,7 +462,7 @@ do_subs(obj,const:="") {
                 obj["critical"][match] := item
         ; }
         
-        r := RegExMatch(cValue,"i)" rgx,m), match := "", newPos := 1 ; prep for next iteration
+        r := RegExMatch(cValue,"i)" rgx,&m), match := "", newPos := 1 ; prep for next iteration
         If IsObject(m)
             match := m.Value(1)
         Else Break ; no match, break and move on
@@ -491,9 +497,10 @@ do_subs(obj,const:="") {
 }
 
 reparse6() {
+    Global const_list, prog
     t := 0
     ; prog := progress2.New(0,const_list.Count,"title:Reparse 6,parent:" g.hwnd)
-    prog.Title("Removing Duplicates"), prog.Range("0-" const_list.Count)
+    prog.SetTitle("Removing Duplicates"), prog.Range("0-" const_list.Count)
     prog.Update(0,"Reparse 6 - removing duplicates with same value")
     
     For const, obj in const_list {
@@ -544,14 +551,14 @@ number_cleanup(inValue) {
     If InStr(cValue,"(0U-700U)")
         test := true
     
-    While RegExMatch(cValue,"i)(" num ")(" typs ")",m) {
+    While RegExMatch(cValue,"i)(" num ")(" typs ")",&m) {
         If !IsObject(m) Or (m.Count() < 2)
             Break
         
         cValue := StrReplace(cValue,m.Value(0),m.Value(1),,,1) ; replace hex with decimal
     }
     
-    While RegExMatch(cValue,"i)(" hex ")",n) {
+    While RegExMatch(cValue,"i)(" hex ")",&n) {
         If !IsObject(n) Or (!n.Count())
             Break
         
@@ -568,7 +575,7 @@ get_full_path(inFile, BaseFolderArr:="") {
         If FileExist(inFile)
             return inFile
         Else {
-            SplitPath inFile, file_name, rootDir, ext
+            SplitPath inFile, &file_name, &rootDir, &ext
             If (!DirExist(BaseFolder) Or BaseFolder="")
                 return ""
         }

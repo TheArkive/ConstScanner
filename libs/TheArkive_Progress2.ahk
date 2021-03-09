@@ -90,21 +90,22 @@
 ; Global prog, g
 ; prog := ""
 
-; g := Gui.New()
-; g.OnEvent("close","close_gui")
+; g := Gui()
+; g.OnEvent("close",close_gui)
 ; g.Add("Text","w600 h300","Test GUI")
-; g.Add("Button",,"Test Progress - click 2 times slowly").OnEvent("click","click_btn")
+; g.Add("Button",,"Test Progress - click 2 times slowly").OnEvent("click",click_btn)
 ; g.show("x200 y200")
 
 ; click_btn(p*) {
+    ; Global prog
 	; If (!IsObject(prog)) {
 		; options := "mainText:Test Main Text pqg,subText:Test Sub Text pqg,title:test title,"
 		; options .= "start:25,parent:" g.hwnd
-		; prog := progress2.New(0,100,options)
+		; prog := progress2(0,100,options)
 	; } Else {
 		; prog.Update(50," ","Test 3")
 		; Sleep 2000
-		; prog.Close()
+        ; prog := ""
 	; }
 ; }
 
@@ -138,8 +139,7 @@ class progress2 {
 		showTitle := this.title ? "" : " -Caption +0x40000" ; 0x40000 = thick border
 		range := this.rangeStart "-" this.rangeEnd
         
-        ; gui_opt := (this.AlwaysOnTop ? "AlwaysOnTop " : "") "-SysMenu " showTitle
-		progress2_gui := Gui.New((this.AlwaysOnTop ? "AlwaysOnTop " : "") "-SysMenu " showTitle,this.title)
+		progress2_gui := Gui((this.AlwaysOnTop ? "AlwaysOnTop " : "") "-SysMenu " showTitle,this.title)
 		
 		progress2_gui.SetFont("s" this.mainTextSize,this.fontFace)
 		align := this.mainTextAlign
@@ -155,7 +155,7 @@ class progress2 {
 		this.subTextHwnd := sT.hwnd
 		
 		If (this.parent) {
-			WinGetPos pX, pY, pW, pH, "ahk_id " this.parent
+			WinGetPos &pX, &pY, &pW, &pH, "ahk_id " this.parent
 			Cx := pX + (pW/2), Cy := pY + (pH/2)
 			progress2_gui.Opt("+Owner" this.parent)
 			
@@ -163,7 +163,7 @@ class progress2 {
 				WinSetEnabled 0, "ahk_id " this.parent
 		}
 		progress2_gui.Show(" NA NoActivate Hide") ; coords ??
-        progress2_gui.GetPos(,,w,h)
+        progress2_gui.GetPos(,,&w,&h)
         
         If (this.x = "" Or this.y = "") And this.parent
             x := Cx - (w/2), y := Cy - (h/2)
@@ -189,22 +189,17 @@ class progress2 {
     Range(range := "0-100") {
         this.gui["ProgBar"].Opt("Range" range)
     }
-    Title(newTitle := "") {
+    SetTitle(newTitle := "") {
         this.gui["ProgBar"].Title := newTitle
     }
 	Close() {
 		If (IsObject(this.gui))
 			this.gui.Destroy()
-		
-        ; If (this.parent)
-			; WinActivate "ahk_id " this.parent
 		If (this.modal)
 			WinSetEnabled 1, "ahk_id " this.parent
-		
-		this.__Delete()
 	}
 	__Delete() {
+        this.Close()
 		this.gui := ""
-		this := ""
 	}
 }

@@ -1,37 +1,38 @@
 extra_dirs() {
-    g2 := Gui2.New("-MinimizeBox -MaximizeBox +Owner" Settings["gui"].hwnd,"Other Files (grouped with primary C++ Source File)")
-    g2.OnEvent("close","g2_close")
-    g2.OnEvent("escape","g2_escape")
+    Global Settings
+    g2 := Gui("-MinimizeBox -MaximizeBox +Owner" Settings["gui"].hwnd,"Other Files (grouped with primary C++ Source File)")
+    g2.OnEvent("close",g2_close)
+    g2.OnEvent("escape",g2_escape)
     
     ctl := g2.Add("Text","xm Section","Profile Name:")
     g2.Add("Edit","x80 yp-4 w400 vProfileName")
     
     g2.Add("Text","xs y+10","Base Folders:")
     ctl := g2.Add("ListBox","x+6 yp-4 w495 r3 vBaseFolder")
-    ctl.OnEvent("ContextMenu","gui_events2b")
-    ctl.OnEvent("DoubleClick","gui_events2")
-    g2.Add("Button","x+0 w30 h20 vBaseFolderAdd","...").OnEvent("click","gui_events2")
-    g2.Add("Button","xp y+0 wp h23 vBaseFolderRemove","X").OnEvent("click","gui_events2")
+    ctl.OnEvent("ContextMenu",gui_events2b)
+    ctl.OnEvent("DoubleClick",gui_events2)
+    g2.Add("Button","x+0 w30 h20 vBaseFolderAdd","...").OnEvent("click",gui_events2)
+    g2.Add("Button","xp y+0 wp h23 vBaseFolderRemove","X").OnEvent("click",gui_events2)
     
     g2.Add("Text","xs y+10","Add Includes/Folders (paste list here - * wildcard * patterns optional)")
     g2.Add("Edit","xs y+5 r3 w560 vOtherDir")
-    g2.Add("Button","x+0 w40 h47 vAddOtherDir","Add").OnEvent("click","gui_events2")
+    g2.Add("Button","x+0 w40 h47 vAddOtherDir","Add").OnEvent("click",gui_events2)
     
     g2.Add("Text","xs y+20","Includes List")
     g2.Add("Text","x+140 w100 Right","Search:")
-    g2.Add("Edit","x+5 yp-4 w265 vSearch").OnEvent("change","gui_events2")
-    g2.Add("Button","x+0 w30 vClearSearch","X").OnEvent("click","gui_events2")
+    g2.Add("Edit","x+5 yp-4 w265 vSearch").OnEvent("change",gui_events2)
+    g2.Add("Button","x+0 w30 vClearSearch","X").OnEvent("click",gui_events2)
     
     IL := IL_Create(2), IL_Add(IL, "icons\check.ico"), IL_Add(IL, "icons\X.ico") ; check, X
     
     Settings["MakeProfile"] := []
     ctl := g2.Add("ListView","xs y+0 w600 r10 Checked Count20 vOtherDirList Multi Sort",["WildPath"])
-    ctl.OnEvent("ContextMenu","gui_events2b"), ctl.SetImageList(IL)
-    ctl.OnEvent("ItemCheck","g2_check_event")
+    ctl.OnEvent("ContextMenu",gui_events2b), ctl.SetImageList(IL)
+    ctl.OnEvent("ItemCheck",g2_check_event)
     ctl.ModifyCol(1,570)
     
-    g2.Add("Button","xm+450 y+10 w75 vOK","OK").OnEvent("click","gui_events2")
-    g2.Add("Button","x+0 w75 vCancel","Cancel").OnEvent("click","gui_events2")
+    g2.Add("Button","xm+450 y+10 w75 vOK","OK").OnEvent("click",gui_events2)
+    g2.Add("Button","x+0 w75 vCancel","Cancel").OnEvent("click",gui_events2)
     
     g2.Show()
     
@@ -50,24 +51,24 @@ extra_dirs() {
 }
 
 g2_menu(ctl,row) {
-    m := Menu.New()
-    m.Add("Include during scan","g2_menu_events")
+    m := Menu()
+    m.Add("Include during scan",g2_menu_events)
     m.SetIcon("Include during scan","icons\check.ico")
-    m.Add("Exclude during scan","g2_menu_events")
+    m.Add("Exclude during scan",g2_menu_events)
     m.SetIcon("Exclude during scan","icons\X.ico")
     m.Add()
-    m.Add("Delete","g2_menu_events")
+    m.Add("Delete",g2_menu_events)
     m.ctl := ctl, m.row := row
     m.Add()
-    m.Add("Copy","g2_menu_events")
-    m.Add("Select All","g2_menu_events")
+    m.Add("Copy",g2_menu_events)
+    m.Add("Select All",g2_menu_events)
     m.Show()
 }
 
 g2_menub(ctl,row) {
-    m := Menu.New()
-    m.Add("Move Up","g2_menu_events")
-    m.Add("Move Down","g2_menu_events")
+    m := Menu()
+    m.Add("Move Up",g2_menu_events)
+    m.Add("Move Down",g2_menu_events)
     m.SetIcon("Move Up","icons\up.ico")
     m.SetIcon("Move Down","icons\down.ico")
     m.ctl := ctl
@@ -76,6 +77,7 @@ g2_menub(ctl,row) {
 }
 
 g2_menu_events(n, p, m) { ; ItemName, ItemPos, MenuObj
+    Global Settings
     row:=0
     If (n="Include during scan") {
         While (row:=m.ctl.GetNext(row)) {
@@ -131,11 +133,12 @@ gui_events2b(ctl, Item, IsRightClick, X, Y) { ; context menu event
         g2_menu(ctl,item) ; item=row
     Else If (ctl.Name = "BaseFolder") { ; ListBox
         Click x ", " y ; messy but effective - select on right-click
-        g2_menub(__w(ctl),ctl.Value)
+        g2_menub(ctl,ctl.Value)
     }
 }
 
 g2_check_event(ctl, row, c) {
+    Global Settings
     file_name := ctl.GetText(row)
     For item in Settings["MakeProfile"] {
         If item[3] = file_name {
@@ -146,6 +149,7 @@ g2_check_event(ctl, row, c) {
 }
 
 gui_events2(ctl,info) {
+    Global Settings
     other_dirs := []
     
     If (ctl.Name = "AddOtherDir") {
@@ -198,7 +202,7 @@ gui_events2(ctl,info) {
         ctl.Delete(ctl.Value)
     
     } Else If (ctl.Name = "BaseFolderAdd") {
-        SplitPath Settings["lastDir"],, dir
+        SplitPath Settings["lastDir"],, &dir
         sel_dir := FileSelect("D2", dir, "Select Base Folder")
         If !sel_dir
             return
@@ -247,6 +251,7 @@ SaveOtherDirList(ctl) {
 }
 
 g2_close(g2) {
+    Global Settings
     g := Settings["gui"]
     WinActivate "ahk_id " g.hwnd
     WinSetEnabled True, g.hwnd

@@ -43,7 +43,7 @@
 ; originally posted by user coco on AutoHotkey.com
 ; https://github.com/cocobelgica/AutoHotkey-JSON
 
-Jxon_Load(ByRef src, args*) {
+Jxon_Load(src, args*) {
 	static q := Chr(34)
 	
 	key := "", is_key := false
@@ -133,20 +133,18 @@ Jxon_Load(ByRef src, args*) {
 			} else { ; number | true | false | null
 				val := SubStr(src, pos, i := RegExMatch(src, "[\]\},\s]|$",, pos)-pos)
 				
-				if IsNumber(val) {
-					if IsInteger(val)
-						val += 0
-					else if IsFloat(val)
-						val += 0
-					else if (val == "true" || val == "false")
-						val := %val% + 0
-					else if (val == "null")
-						val := ""
-					else if is_key {			; Else if (pos--, next := "#")
-						pos--, next := "#"			; continue
-						continue
-					}
-				}
+                if IsInteger(val)
+                    val += 0
+                else if IsFloat(val)
+                    val += 0
+                else if (val == "true" || val == "false")
+                    val := (val == "true")
+                else if (val == "null")
+                    val := ""
+                else if is_key {
+                    pos--, next := "#"
+                    continue
+                }
 				
 				pos += i-1
 			}
@@ -206,7 +204,6 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 		
 		return is_array ? "[" . out . "]" : "{" . out . "}"
 	} else { ; Number
-		; number := "number"
 		If (Type(obj) != "String")
 			return obj
 		Else {
@@ -221,16 +218,5 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 			return q obj q
 		}
 	}
-    
-    escape_string(s) {
-        s := StrReplace(s,"`t","\t")
-        s := StrReplace(s,"`r","\r")
-        s := StrReplace(s,"`n","\n")
-        s := StrReplace(s,"`b","\b")
-        s := StrReplace(s,"`f","\f")
-        s := StrReplace(s,"\","\\")
-        s := StrReplace(s,"/","\/")
-        s := StrReplace(s,q,"\" q)
-    }
 }
 

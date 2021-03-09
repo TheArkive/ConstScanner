@@ -1,4 +1,6 @@
 default_includes_gui() {
+    Global Settings
+    g := Settings["gui"]
     If !Settings["ApiPath"] {
         Msgbox "Select C++ source first."
         return
@@ -9,13 +11,13 @@ default_includes_gui() {
     For incl in default_includes
         default_includes.Push(StrReplace(incl,"|","\"))
     
-    g4 := Gui.New("-MinimizeBox -MaximizeBox +Owner" g.hwnd,"Default Includes")
-    g4.OnEvent("close","g5_close")
-    g4.OnEvent("escape","g5_escape")
+    g4 := Gui("-MinimizeBox -MaximizeBox +Owner" g.hwnd,"Default Includes")
+    g4.OnEvent("close",g5_close)
+    g4.OnEvent("escape",g5_escape)
     
-    g4.Add("Listbox","xm y+5 w500 r10 vDefaultIncludes",recents_list).OnEvent("doubleclick","gui_events5")
-    g4.Add("Button","xm+400 y+0 w50 vAdd","Add").OnEvent("click","gui_events5")
-    g4.Add("Button","x+0 y+0 w50 vRemove","Remove").OnEvent("click","gui_events5")
+    g4.Add("Listbox","xm y+5 w500 r10 vDefaultIncludes",recents_list).OnEvent("doubleclick",gui_events5)
+    g4.Add("Button","xm+400 y+0 w50 vAdd","Add").OnEvent("click",gui_events5)
+    g4.Add("Button","x+0 y+0 w50 vRemove","Remove").OnEvent("click",gui_events5)
     
     g4.Show()
     
@@ -23,6 +25,8 @@ default_includes_gui() {
 }
 
 gui_events5(ctl,info) {
+    Global Settings
+    g := Settings["gui"]
     recents_list := []
     For rec in Settings["baseFiles"]
         recents_list.Push(rec)
@@ -39,6 +43,8 @@ gui_events5(ctl,info) {
 }
 
 g5_close(g5) {
+    Global Settings
+    g := Settings["gui"]
     WinActivate "ahk_id " g.hwnd
     WinSetEnabled True, g.hwnd
     g["NameFilter"].Focus()
