@@ -8,6 +8,7 @@ Place these files in the data directory.
 Load them up with the menu:  Data > Load Constants
 
 ## Highlights
+* inspired by [Constants.ahk](https://autohotkey.com/board/topic/18177-crazy-scripting-list-of-win32-constants/) (written by SKAN)
 * Flexible and searchable database for referencing API constants.
 * Select source C++ header and optionally define additioinal #INCLUDES, or entire directories to scan for more headers/constants.
 * Setup this script with a compiler of your choice for checking constants (recommended MSVC BuildTools or GCC variant, like MinGW32/64 or TDGCC).
@@ -30,8 +31,10 @@ Constant values with multiple definitions are referred to as "Dupes" in the GUI 
 
 ## Planned changes:
 
+* restricting logged constants to only those found in the specified source files\
+but still resolving outside constants when needed to define specified constants
 * Add a framework to allow user-defined values for constants before testing/compiling.
 
-Please use the latest AutoHotkey v2 alpha (currently a125).
+Please use the latest AutoHotkey v2 alpha (currently a131).
 
 https://www.autohotkey.com/download/2.0/

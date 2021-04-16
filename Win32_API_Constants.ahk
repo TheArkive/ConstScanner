@@ -1,5 +1,8 @@
 ; AHK v2
 
+; Inspired by Constants.ahk (written by SKAN)
+; Link: https://autohotkey.com/board/topic/18177-crazy-scripting-list-of-win32-constants/
+
 ; great win32 api constant sources:
 ; https://raw.githubusercontent.com/GroggyOtter/GroggyRepo/master/Files/List%20-%20Win32%20Constants
 ; https://www.autoitscript.com/forum/files/file/16-win32-api-constants/
