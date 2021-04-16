@@ -43,7 +43,7 @@
 ; originally posted by user coco on AutoHotkey.com
 ; https://github.com/cocobelgica/AutoHotkey-JSON
 
-Jxon_Load(src, args*) {
+Jxon_Load(&src, args*) {
 	static q := Chr(34)
 	
 	key := "", is_key := false
@@ -74,7 +74,7 @@ Jxon_Load(src, args*) {
 			    , ch := SubStr(src, pos, (SubStr(src, pos)~="[\]\},\s]|$")-1) ][1]
 			, ln, col, pos)
 
-			throw Exception(msg, -1, ch)
+			throw Error(msg, -1, ch)
 		}
 		
 		obj := stack[1]
@@ -165,12 +165,12 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 		is_array := (memType = "Array") ? 1 : 0
 		
 		if (memType ? (memType != "Object" And memType != "Map" And memType != "Array") : (ObjGetCapacity(obj) == ""))
-			throw Exception("Object type not supported.", -1, Format("<Object at 0x{:p}>", ObjPtr(obj)))
+			throw Error("Object type not supported.", -1, Format("<Object at 0x{:p}>", ObjPtr(obj)))
 		
 		if IsInteger(indent)
 		{
 			if (indent < 0)
-				throw Exception("Indent parameter must be a postive integer.", -1, indent)
+				throw Error("Indent parameter must be a postive integer.", -1, indent)
 			spaces := indent, indent := ""
 			
 			Loop spaces ; ===> changed
@@ -184,7 +184,7 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 		lvl += 1, out := "" ; Make #Warn happy
 		for k, v in obj {
 			if IsObject(k) || (k == "")
-				throw Exception("Invalid object key.", -1, k ? Format("<Object at 0x{:p}>", ObjPtr(obj)) : "<blank>")
+				throw Error("Invalid object key.", -1, k ? Format("<Object at 0x{:p}>", ObjPtr(obj)) : "<blank>")
 			
 			; If (k = "")
 				; Continue

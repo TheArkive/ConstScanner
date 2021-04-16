@@ -24,7 +24,7 @@ Global already_scanned := Map(), dupe_list:=[]
 
 If (FileExist("settings.json")) {
     sText := FileRead("settings.json")
-    Settings := jxon_load(sText)
+    Settings := jxon_load(&sText)
 }
 
 ; (!Settings.Has("DefaultIncludes"))  ? Settings["DefaultIncludes"]   := Map() : ""
@@ -169,7 +169,7 @@ LoadFile(selFile:="") {
     
     fileData := FileRead(selFile)
     
-    in_load_data := jxon_load(fileData)
+    in_load_data := jxon_load(&fileData)
     If (in_load_data.Count = 2 And in_load_data.Has("__const_list")) {
         const_list := in_load_data["__const_list"]
         IncludesList := in_load_data["__includes_list"]

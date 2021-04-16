@@ -43,11 +43,11 @@ eval(e,test:=false) { ; extend support for parenthesis
         return !RegExMatch(Trim(e),"i)(^[^\d!~\-\x28]|! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])") ; only return true/false testing "e" as expression
     
     If RegExMatch(e,"i)(! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",&m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
-        throw Exception("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34) "`r`n`r`nExpression: " e,,"Not a math expression.")
+        throw Error("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34) "`r`n`r`nExpression: " e,,"Not a math expression.")
     
     StrReplace(e,"(","(",,&LP), StrReplace(e,")",")",,&RP)
     If (LP != RP)
-        throw Exception("Invalid grouping with parenthesis.  You must ensure the same number of ( and ) exist in the expression.`r`n`r`nExpression:`r`n    " e)
+        throw Error("Invalid grouping with parenthesis.  You must ensure the same number of ( and ) exist in the expression.`r`n`r`nExpression:`r`n    " e)
     
     While RegExMatch(e, "i)(\x28[^\x28\x29]+\x29)", &m) {                ; match phrase surrounded by parenthesis, inner-most first
         ans := _eval(match := m.value(0))                               ; match and calculate result
@@ -65,7 +65,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
     
     Static q := Chr(34)
     If RegExMatch(e,"i)(^[^\d!~\-\x28]|! |~ |[g-wyz]+|['\" q "\$@#%\{\}\[\]\\,:;\?``=_])",&m) ; check for invalid characters, non-numbers, invalid punctuation, etc.
-        throw Exception("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34),,"Not a math expression.")
+        throw Error("Syntax error.`r`n     Reason: " Chr(34) m.Value(1) Chr(34),,"Not a math expression.")
     
     Static _n   := "(?:\d+\.\d+(?:e\+\d+|e\-\d+|e\d+)?|0x[\dA-F]+|\d+)"  ; Regex to identify float/scientific notation, then hex, then base-10 numbers.  Only positive.
     Static _num := "([!~\-]*)(" _n ")"                                   ; Expand number definition to include - / ~ / !
@@ -77,7 +77,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
         mat := _m.Value(0)                  ; Capture match pattern.  Pattern starts with "number" / alternates with "oper".
         If (typ="number") {                 ; Alternate the RegEx search between numbers and operators to improve grouping/spacing of the expression.
             If InStr(_m.Value(1), "--")     ; Check for improper "--" in prefix.
-                throw Exception("Improper usage of double negative, ie. " q "--" q ".",,"Sub-Expression: " mat)
+                throw Error("Improper usage of double negative, ie. " q "--" q ".",,"Sub-Expression: " mat)
             If InStr(_m.Value(1),"-")
                 mat := StrReplace(_m.Value(1), "-", "#") _m.Value(2) ; Replace "-" that ONLY indicates negative (not subtraction) with "#".
             typ   := "oper"
@@ -158,10 +158,10 @@ _eval(e) { ; support function for pure math expression without parenthesis
                         val2 := !v1
                     Else If (_op = "~") {
                         If !IsInteger(v1)
-                            throw Exception("Bitwise NOT (~) operator against non-integer value.`r`n     Invalid operation: ~" v1,,"Bitwise operation with non-integer.")
+                            throw Error("Bitwise NOT (~) operator against non-integer value.`r`n     Invalid operation: ~" v1,,"Bitwise operation with non-integer.")
                         val2 := ~v1
                     } Else
-                        throw Exception("Unexpected error in NOT (! / ~) expression.",,"First char is not ! or ~.`r`n`r`n     Sub-Expression: " _mat)
+                        throw Error("Unexpected error in NOT (! / ~) expression.",,"First char is not ! or ~.`r`n`r`n     Sub-Expression: " _mat)
                     
                     e := StrReplace(e,_mat,StrReplace(val2,"-","#"),,,1) ; Substitute resolved value in main expression.
                     e := RegExReplace(e,"##","")                ; The only time a double negative "--" won't throw an error, so "##" will cancel itself out.
@@ -179,13 +179,13 @@ _eval(e) { ; support function for pure math expression without parenthesis
                         v1 := StrReplace(z.value(1),"#","-"), v2 := StrReplace(z.value(3),"#","-")
                         
                         If (o = "<<" Or o = ">>") And (!IsInteger(v1) Or !IsInteger(v2) Or v2<0) ; check for invalid expressions
-                            throw Exception("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Bit shift with non-integers.")
+                            throw Error("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Bit shift with non-integers.")
                         If (o = "/" Or o = "//") And v2=0
-                            throw Exception("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Divide by zero.")
+                            throw Error("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Divide by zero.")
                         If (o = "//") And (!IsInteger(v1) Or !IsInteger(v2))
-                            throw Exception("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Floor division with non-integer divisor.")
+                            throw Error("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Floor division with non-integer divisor.")
                         If (o = "&" Or o = "^" Or o = "|") And (!IsInteger(v1) Or !IsInteger(v2))
-                            throw Exception("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Bitwise operation with non-integers.")
+                            throw Error("Invalid expression.`r`n     Expr: " v1 " " o " " v2,,"Bitwise operation with non-integers.")
                         
                         (IsFloat(v1)) ? v1 := Float(v1) : (IsInteger(v1)) ? v1 := Integer(v1) : ""
                         (IsFloat(v2)) ? v2 := Float(v2) : (IsInteger(v2)) ? v2 := Integer(v2) : ""
@@ -219,7 +219,7 @@ _eval(e) { ; support function for pure math expression without parenthesis
         Else If IsFloat(final)
             return final
         Else
-            throw Exception("fix this type: " Type(final)) ; this isn't supposed to be here, but just in case there's some weird type conflict, please tell me and post example.
+            throw Error("fix this type: " Type(final)) ; this isn't supposed to be here, but just in case there's some weird type conflict, please tell me and post example.
     } Else
         return e
 }
