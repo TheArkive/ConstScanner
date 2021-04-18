@@ -11,8 +11,12 @@ extra_dirs() {
     ctl := g2.Add("ListBox","x+6 yp-4 w495 r3 vBaseFolder")
     ctl.OnEvent("ContextMenu",gui_events2b)
     ctl.OnEvent("DoubleClick",gui_events2)
+    
     g2.Add("Button","x+0 w30 h20 vBaseFolderAdd","...").OnEvent("click",gui_events2)
     g2.Add("Button","xp y+0 wp h23 vBaseFolderRemove","X").OnEvent("click",gui_events2)
+    
+    g2.Add("Text","xs y+10","Constants:")
+    g2.Add("Edit","x+20 yp-4 w495 r3 vUserConstants")
     
     g2.Add("Text","xs y+10","Add Includes/Folders (paste list here - * wildcard * patterns optional)")
     g2.Add("Edit","xs y+5 r3 w560 vOtherDir")
@@ -44,6 +48,8 @@ extra_dirs() {
         rec := Settings["Recents"][Settings["ApiPath"]]
         g2["ProfileName"].Value := rec["Name"]
         g2["BaseFolder"].Add(rec["BaseFolder"])
+        (rec.Has("UserConstants")) ? g2["UserConstants"].value := StrReplace(rec["UserConstants"],"\n","`n") : ""
+        
         For row in rec["OtherDirList"]
             g2["OtherDirList"].Add((row[1]?"Check ":"") "Icon" row[2],row[3])
         Settings["MakeProfile"] := rec["OtherDirList"]
@@ -230,6 +236,7 @@ gui_events2(ctl,info) {
         prof := Map(), prof.CaseSense := false ; save settings
         prof["Name"] := ctl.gui["ProfileName"].Value
         prof["BaseFolder"] := ctl.gui["BaseFolder"].GetItems()
+        prof["UserConstants"] := ctl.gui["UserConstants"].value
         prof["OtherDirList"] := Settings["MakeProfile"]
         Settings["Recents"][prof["Name"]] := prof
         

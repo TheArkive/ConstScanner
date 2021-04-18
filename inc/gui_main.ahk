@@ -423,9 +423,26 @@ menu_events(ItemName, ItemPos, _o) {
             Else If (m.Value(2) = "GCC")
                 error_check := CliData("msystem mingw" StrReplace(m.Value(1),"x","") " & g++ -o test_const.exe test_const.cpp")
             
-            If FileExist("test_const.exe")
-                result_gui( CliData("test_const.exe") )
-            Else
+            If FileExist("test_const.exe") {
+                r := CliData("test_const.exe"), final := ""
+                
+                Loop Parse r, "`n", "`r"
+                {
+                    var := Trim(SubStr(A_LoopField,1,e:=InStr(A_LoopField,"=")-1))
+                    val := Trim(SubStr(A_LoopField,e+2))
+                    
+                    If RegExMatch(val,"^[A-Fa-f0-9]+$") And RegExMatch(val,"[A-Fa-f]+")
+                        val := Integer("0x" val)
+                    
+                    If (val >= -2147483648 And val <= 4294967295) {
+                        final .= var " = " val " / " Format("0x{:08X}",val) "`r`n"    ; 32-bit
+                    } Else {
+                        final .= var " = " val " / " Format("0x{:016X}",val) "`r`n"   ; 64-bit
+                    }
+                }
+                
+                result_gui(Trim(final,"`r`n"))
+            } Else
                 result_gui( "The file did not compile.`r`n`r`n===================================`r`n`r`n" error_check )
         }
     }

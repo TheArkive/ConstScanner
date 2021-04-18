@@ -43,7 +43,6 @@ includes_report() {
             msgbox "FILE DOES NOT EXIST:`r`n    " fullPath
         
         IncludesList[StrReplace(fullPath,"\","|")] := []
-        ; SplitPath fullPath, file_name
         
         fText := FileRead(fullPath)
         fArr := StrSplit(fText,"`n","`r")
@@ -165,8 +164,9 @@ header_parser() {
                 
                 If !(cur_incl := get_full_path(match,baseFolders)) {
                     cur_incl := match
-                } Else If (!dupe_item_check(includes_list,cur_incl) And Trim(cur_incl," `t") != "")
-                    includes_list.Push(cur_incl)            ; file list for parsing
+                }
+                ; Else If (!dupe_item_check(includes_list,cur_incl) And Trim(cur_incl," `t") != "")
+                    ; includes_list.Push(cur_incl)            ; file list for parsing
                 
                 If (Trim(cur_incl," `t") != "")
                     IncludesList[StrReplace(fullPath,"\","|")].Push([match,cur_incl])   ; Main IncludesList
@@ -194,16 +194,27 @@ header_parser() {
                 cType := "Unknown"
                 If RegExMatch(constExp,"^TEXT\x28.*([\" q "|']+).*\x29$") Or RegExMatch(constExp,"^\x28? ?L\" q)
                     cType := "String"
-                Else If InStr(constExp,"#") Or (InStr(constExp,"{") And InStr(constExp,"}")) Or InStr(constExp,"=") Or InStr(constExp,";")  ; chars indicating NOT an expr
-                                       Or InStr(constExp,",") Or (constExp = "")
-                                       Or ("_" constName = constExp)                                                                        ; constExpr = _ + constName
-                                       Or RegExMatch(constExp,"\x28 *" constName " *\x29")
-                                       Or (constName "A" = constExp Or constName "W" = constExp Or constName "0" = constExp) ; Or constName "_W" = constExp Or constName "_A" = constExp)
-                                       Or (SubStr(constExp,-1) = "*")
-                                       Or (InStr(constExp,"enum ") = 1 Or InStr(constExp,"struct ") = 1)
-                                       Or RegExMatch(constExp,"i)^[A-F0-9]{8}\-[A-F0-9]{4}\-[A-F0-9]{4}\-[A-F0-9]{4}\-[A-F0-9]{12}$")       ; 47065EDC-D7FE-4B03-919C-C4A50B749605
-                                       Or RegExMatch(constExp,"^[a-zA-Z_]+\x28.*([\" q "|#|\,]+).*\x29$")                                   ; function-like with invalid chars / NOT expr
-                                       Or (constExp = "(&" constName ")")
+                                            ; chars indicating NOT an expr
+                Else If InStr(constExp,"#") Or (InStr(constExp,"{") And InStr(constExp,"}"))
+                                            Or InStr(constExp,"=") Or InStr(constExp,";")
+                                            Or (constExp = "")
+                                            ; Or InStr(constExp,",") ; trying some functions now
+                                            
+                                            ; constExpr = _ + constName
+                                            Or ("_" constName = constExp)
+                                            Or RegExMatch(constExp,"\x28 *" constName " *\x29")
+                                            
+                                            ; Or constName "_W" = constExp Or constName "_A" = constExp)
+                                            ; Or (constName "A" = constExp Or constName "W" = constExp Or constName "0" = constExp)
+                                            Or (SubStr(constExp,-1) = "*")
+                                            ; Or (InStr(constExp,"enum ") = 1 Or InStr(constExp,"struct ") = 1)
+                                            
+                                            ; 47065EDC-D7FE-4B03-919C-C4A50B749605
+                                            Or RegExMatch(constExp,"i)^[A-F0-9]{8}\-[A-F0-9]{4}\-[A-F0-9]{4}\-[A-F0-9]{4}\-[A-F0-9]{12}$")
+                                            
+                                            ; function-like with invalid chars / NOT expr
+                                            ; Or RegExMatch(constExp,"^[a-zA-Z_]+\x28.*([\" q "|#|\,]+).*\x29$") ; trying functions now
+                                            Or (constExp = "(&" constName ")")
                     cType := "Other"
                 Else If InStr(constExp,Chr(34)) Or InStr(constExp,"'")
                     cType := "String"
@@ -312,12 +323,6 @@ create_cpp_file() {
     
     For _file in def_inc {
         SplitPath _file, &file_Name
-        ; For bFolder in BaseFolders {
-            ; If InStr(file_name,bFolder) {
-                ; file_name := StrReplace(file_name,bFolder "\","")
-                ; Break
-            ; }
-        ; }
         cppFile := "#include <iostream>`r`n#include <" file_name ">`r`n" ; was rootFile
     }
     
@@ -385,26 +390,101 @@ reparse1a(pass) { ; constants that point to a single constant / any type
     return list
 }
 
+func_conv(_in) {
+    Static win32_typ_fnc := "_ASF_HRESULT_TYPEDEF_|_HRESULT_TYPEDEF_|AUDCLNT_ERR|AUDCLNT_SUCCESS|"
+                          . "MAKE_AVIERR|MAKE_DDHRESULT|MAKE_D3DHRESULT|D3DTS_WORLDMATRIX|HRESULT_FROM_WIN32|"
+                          . "MAKE_DMHRESULTERROR|MAKE_DSHRESULT|_NDIS_ERROR_TYPEDEF_|DBDAOERR|__MSABI_LONG|"
+                          . "STD_CTL_SCODE|CUSTOM_CTL_SCODE|MAKE_DMHRESULTSUCCESS|MAKE_HRESULT|CTL_CODE|USB_CTL"
+    
+    match_func := RegExReplace(_in,"\x28?(" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29\x29?","$1")
+    cValue := RegExReplace(_in,"\x28?(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29\x29?","$1")
+    new_value := ""
+    
+    If !IsInteger(cValue) ; cValue MUST be numerical
+    And ((match_func != "MAKE_HRESULT")
+    And (match_func != "CTL_CODE"))
+        return _in
+    
+    If (match_func = "_HRESULT_TYPEDEF_") Or (match_func = "_NDIS_ERROR_TYPEDEF_")
+        new_value := cValue
+    Else If (match_func = "AUDCLNT_ERR") ; Audioclient.h line 2128 / winerror.h
+        new_value := MAKE_HRESULT_SCODE(SEVERITY_ERROR:=1, FACILITY_AUDCLNT:=2185, cValue)
+    Else If (match_func = "AUDCLNT_SUCCESS") ; Audioclient.h line 2129 / winerror.h
+        new_value := MAKE_HRESULT_SCODE(SEVERITY_SUCCESS:=0, FACILITY_AUDCLNT:=2185, cValue)
+    Else If (match_func = "HRESULT_FROM_WIN32")
+        new_value := HRESULT_FROM_WIN32(cValue)
+    Else If (match_func = "MAKE_AVIERR")
+        new_value := MAKE_HRESULT_SCODE(SEVERITY_ERROR:=1, FACILITY_ITF:=4, 0x4000 + cValue)
+    Else If (match_func = "STD_CTL_SCODE")
+        new_value := MAKE_HRESULT_SCODE(SEVERITY_ERROR:=1, FACILITY_CONTROL:=10, cValue)
+    Else If (match_func = "CUSTOM_CTL_SCODE")
+        new_value := MAKE_HRESULT_SCODE(SEVERITY_ERROR:=1, FACILITY_CONTROL:=10, cValue)
+    Else If (match_func = "MAKE_DMHRESULTERROR")
+        new_value := MAKE_HRESULT_SCODE(1, FACILITY_DIRECTMUSIC:=2168, ((DMUS_ERRBASE:=0x1000) + (cValue)))
+    Else If (match_func = "MAKE_DMHRESULTSUCCESS")
+        new_value := MAKE_HRESULT_SCODE(0, FACILITY_DIRECTMUSIC:=2168, ((DMUS_ERRBASE:=0x1000) + (cValue)))
+    Else If (match_func = "MAKE_HRESULT") {
+        a := StrSplit(cValue,Chr(44))
+        b := []
+        Loop a.Length {
+            If !eval(a[A_Index],true)
+                return _in
+            Else b.InsertAt(A_Index,eval(Trim(a[A_Index])))
+        }
+        new_value := MAKE_HRESULT_SCODE(b[1], b[2], b[3])
+    } Else If (match_func = "CTL_CODE") {
+        a := StrSplit(cValue,Chr(44))
+        b := []
+        Loop a.Length {
+            If !eval(a[A_Index],true)
+                return _in
+            Else b.InsertAt(A_Index,eval(Trim(a[A_Index])))
+        }
+        new_value := CTL_CODE(b[1], b[2], b[3], b[4])
+    } Else If (match_func = "USB_CTL")
+        new_value := USB_CTL(cValue)
+    
+    return new_value ? new_value : _in
+}
+
+HRESULT_FROM_WIN32(x) { ; winerror.h line 29099 / 29086
+    return (x<=0) ? x : ((x & 0x0000FFFF) | ((FACILITY_WIN32:=7) << 16) | 0x80000000)
+}
+
+MAKE_HRESULT_SCODE(sev, fac, code) { ; winerror.h line 29068 MAKE_HRESULT() / MAKE_SCODE()
+    return (sev<<31) | (fac<<16) | (code)
+}
+
+CTL_CODE(DeviceType, Function, Method, Access) {
+    return ((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method)
+}
+
+USB_CTL(id) {
+    return CTL_CODE(FILE_DEVICE_USB:=0x22, id, METHOD_BUFFERED:=0, FILE_ANY_ACCESS:=0)
+}
+
 do_subs(obj,const:="") {
-    Global const_list
-    Static casting := "HRESULT|NTSTATUS|BCRYPT_ALG_HANDLE|ULONGLONG|LONGLONG|ULONG64|ULONG|LONG64|LONG32|LONG|long|float|LHANDLE|HANDLE|BYTE|ARGB|DISPID|HBITMAP|u_long|" ; long
-                    . "BOOKMARK|DWORD64|DWORD32|DWORD|WORD|USHORT|SHORT|UINT64|UINT32|UINT16|UINT8|UINT|INT64|INT32|INT16|INT8|INT|int|CHAR|LPTSTR|LPSTR|LPCSTR|LPCTSTR|HWND|"
-                    . "D3DRENDERSTATETYPE|D3DTRANSFORMSTATETYPE|D3DTEXTURESTAGESTATETYPE|D3DVERTEXBLENDFLAGS|HFILE|HCERTCHAINENGINE|HINSTANCE|unsigned long|"
-                    . "DELTA_FILE_TYPE|DELTA_FLAG_TYPE|LPDATAOBJECT|DPI_AWARENESS_CONTEXT|MCIDEVICEID|PROPID"
+    Global Settings, const_list
+    Static casting := "HRESULT|NTSTATUS|BCRYPT_ALG_HANDLE|ULONGLONG|LONGLONG|ULONG64|ULONG|LONG64|"
+                    . "LONG32|LONG|long|float|LHANDLE|HANDLE|BYTE|ARGB|DISPID|HBITMAP|u_long|"
+                    . "BOOKMARK|DWORD64|DWORD32|DWORD|WORD|USHORT|SHORT|UINT64|UINT32|UINT16|"
+                    . "UINT8|UINT|INT64|INT32|INT16|INT8|INT|int|CHAR|LPTSTR|LPSTR|LPCSTR|LPCTSTR|HWND|"
+                    . "D3DRENDERSTATETYPE|D3DTRANSFORMSTATETYPE|D3DTEXTURESTAGESTATETYPE|D3DVERTEXBLENDFLAGS|"
+                    . "HFILE|HCERTCHAINENGINE|HINSTANCE|unsigned long|"
+                    . "DELTA_FILE_TYPE|DELTA_FLAG_TYPE|LPDATAOBJECT|DPI_AWARENESS_CONTEXT|MCIDEVICEID|"
+                    . "PROPID|HIMAGELIST|WCHAR|HTREEITEM|SDP_ERROR"
     
     Static typs := "(?:UI8|UI16|UI32|UI64|I64|I32|I16|I8|ULL|UI|LL|UL|U|L|I)"
     
-    Static win32_typ_fnc := "_ASF_HRESULT_TYPEDEF_|_HRESULT_TYPEDEF_|AUDCLNT_ERR|AUDCLNT_SUCCESS|MAKE_AVIERR|MAKE_DDHRESULT|MAKE_D3DHRESULT|D3DTS_WORLDMATRIX|"
-                          . "MAKE_DMHRESULTERROR|MAKE_DSHRESULT|_NDIS_ERROR_TYPEDEF_|DBDAOERR|__MSABI_LONG"
-    
+    prof := Settings["Recents"][Settings["ApiPath"]]
+    UserConstants := (prof.Has("UserConstants")) ? StrReplace(prof["UserConstants"],"\n","`n") : ""
     cValue := obj["value"]
+    cValue := func_conv(cValue) ; func type conversion improved
     
-    ; cValue := RegExReplace(cValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1") ; func type conversion
-    ; While RegExMatch(cValue,"\x28 ?(" casting ")(?:_PTR)? ?\x29",_m) ; remove initial type casting
-        ; cValue := StrReplace(cValue,_m.Value(0),"")
+    While RegExMatch(cValue,"\x28 ?(" casting ")(?:_PTR)? ?\x29",&_m) ; remove initial type casting
+        cValue := StrReplace(cValue,_m.Value(0),"")
     
     cValue := number_cleanup(cValue) ; try to clean up number formats, and convert hex to base-10
-    
     newPos := 1
     
     Static rgx := "([_A-Z][\w_]+\x28?)" ; "((?<!\d)[A-Z_][\w]+)"
@@ -419,6 +499,43 @@ do_subs(obj,const:="") {
     While (!eval(cValue,true) And IsObject(m)) { ; require a match for looping
         dupe_arr := [], prep := cValue, mValue := "" ; searched := true
         
+        If RegExMatch(match,"i)(^[_A-Z][\w_]+\x28$)") { ; if match is "func(", advance search now to find next constant
+            r := RegExMatch(cValue,"i)" rgx,&m, r+m.Len(1)), match := "", newPos := 1 ; prep for next iteration
+            If IsObject(m)
+                match := m.Value(1)
+            Else Break ; no match, break and move on
+        }
+        
+        ; ================================================================================
+        ; ================================================================================
+        ; User Defined Constants
+        user_const := false
+        Loop Parse UserConstants, "`n", "`r"
+        {
+            var := Trim(SubStr(A_LoopField,1,t:=InStr(A_LoopField,"=")-1)," `t`r`n")
+            val := Trim(SubStr(A_LoopField,t+2)," `t`r`n")
+            If RegExMatch(val,"i)^0x[a-f0-9]+$")
+                val := Integer(val)
+            
+            ; If (const = "DDBLT_ANYALPHA") And (match = "DDBLT_ALPHADESTSURFACEOVERRIDE")
+                ; msgbox const "`r`n`r`n" match "`r`n" var "`r`n`r`n" UserConstants
+            
+            If (var = match) {
+                cValue := StrReplace(cValue,match,val,false,,1)
+                cValue := func_conv(cValue)
+                
+                r := RegExMatch(cValue,"i)" rgx,&m), match := "", newPos := 1 ; prep for next iteration
+                If IsObject(m)
+                    match := m.Value(1)
+                user_const := true
+                Break
+            }
+        }
+        If user_const
+            Continue
+        ; ================================================================================
+        ; ================================================================================
+        
         If (SubStr(match,-1) = "(") Or (!IsInteger(match) And !const_list.Has(match))
             Break
         
@@ -426,13 +543,7 @@ do_subs(obj,const:="") {
             mValue := Integer(match), newObj := Map("type","")
         else {
             mValue := const_list[match]["exp"]
-            ; If (commit)
-                newObj := const_list[match], (newObj.Has("dupe")) ? (dupe_arr := newObj["dupe"]) : "" ; lay off critical for now
-            ; Else newObj := Map("type","")
-            
-            ; mValue := RegExReplace(mValue,"(?:" win32_typ_fnc ") ?\x28 ?(.*?) ?\x29","$1")   ; func type conversion
-            ; While RegExMatch(mValue,"\x28 ?(" casting ") ?\x29",_m)                         ; remove type casting
-                ; mValue := StrReplace(mValue,_m.Value(0),"")
+            newObj := const_list[match], (newObj.Has("dupe")) ? (dupe_arr := newObj["dupe"]) : "" ; lay off critical for now
             
             mValue := number_cleanup(mValue)
         }
@@ -455,12 +566,10 @@ do_subs(obj,const:="") {
             ; Debug.Msg(const ": " const_list[const]["value"] "`r`n    match: " match "`r`n    mValue: " mValue "`r`ncValue: " cValue "`r`n")
         ; =================================
         
-        ; If (commit) {
-            If dupe_arr.Length > 0            ; lay off "critical" for now
-                obj["critical"] := Map()
-            For i, item in dupe_arr ; indicates there may be an alternate value for const
-                obj["critical"][match] := item
-        ; }
+        If dupe_arr.Length > 0            ; lay off "critical" for now
+            obj["critical"] := Map()
+        For i, item in dupe_arr ; indicates there may be an alternate value for const
+            obj["critical"][match] := item
         
         r := RegExMatch(cValue,"i)" rgx,&m), match := "", newPos := 1 ; prep for next iteration
         If IsObject(m)

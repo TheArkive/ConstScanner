@@ -258,6 +258,7 @@ relist_const() {
     g := Settings["gui"]
     n_fil := g["NameFilter"].value
     v_fil := g["ValueFilter"].value
+    v_fil := IsInteger(v_fil) ? Format("{:d}",v_fil) : v_fil
     e_fil := g["ExpFilter"].Value
     f_fil := Settings["FileFilter"]
     

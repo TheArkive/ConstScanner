@@ -10,9 +10,9 @@ Load them up with the menu:  Data > Load Constants
 ## Highlights
 * inspired by [Constants.ahk](https://autohotkey.com/board/topic/18177-crazy-scripting-list-of-win32-constants/) (written by SKAN)
 * Flexible and searchable database for referencing API constants.
-* Select source C++ header and optionally define additioinal #INCLUDES, or entire directories to scan for more headers/constants.
+* Scan for constants in user-defined groups of headers.
+* Set user-defined constants so you can keep your database files lean with only the constants you want to list in a given API.
 * Setup this script with a compiler of your choice for checking constants (recommended MSVC BuildTools or GCC variant, like MinGW32/64 or TDGCC).
-* Easily compile constants into a small test program to check constant value from the compiler of your choice.
 * After scanning, a searchable Includes List is generated, showing child includes for each listed include.
 * Catalogs structs, enums, and #define entries.
 
@@ -31,9 +31,7 @@ Constant values with multiple definitions are referred to as "Dupes" in the GUI 
 
 ## Planned changes:
 
-* restricting logged constants to only those found in the specified source files\
-but still resolving outside constants when needed to define specified constants
-* Add a framework to allow user-defined values for constants before testing/compiling.
+* append user-defined constants to database files, and make this list visible
 
 Please use the latest AutoHotkey v2 alpha (currently a131).
 
