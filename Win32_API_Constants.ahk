@@ -42,6 +42,7 @@ If (FileExist("settings.json")) {
 (!Settings.Has("Recents"))          ? Settings["Recents"]           := Map() : ""
 (!Settings.Has("doReset"))          ? Settings["doReset"]           := false : ""
 (!Settings.Has("temp_gui"))         ? Settings["temp_gui"]          := {hwnd:0} : ""
+(!Settings.Has("ViewBase"))         ? Settings["ViewBase"]          := "Decimal" : ""
 
 (!Settings.Has("ApiPath"))          ? Settings["ApiPath"]           := "" : ""
 (!Settings.Has("ScanType"))         ? Settings["ScanType"]          := "C&ollect" : ""
@@ -331,7 +332,12 @@ relist_const() {
             filteredList[const] := obj
             c_disp := (crit)?"X":""
             d_disp := (dupe)?"X":""
-            ctl.Add(,const,value,obj["type"],file_name,d_disp,c_disp), tot++ ; i, f, s, u, o, e, d    ; type filters
+            
+            If (Settings["ViewBase"] = "Hex") And IsInteger(value)
+                disp_val := Format("0x{:X}",value)
+            ELse disp_val := value
+            
+            ctl.Add(,const,disp_val,obj["type"],file_name,d_disp,c_disp), tot++ ; i, f, s, u, o, e, d    ; type filters
             
             Switch obj["type"] {
                 Case "Integer": i+=1

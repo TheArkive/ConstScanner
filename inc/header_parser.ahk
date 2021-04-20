@@ -517,9 +517,6 @@ do_subs(obj,const:="") {
             If RegExMatch(val,"i)^0x[a-f0-9]+$")
                 val := Integer(val)
             
-            ; If (const = "DDBLT_ANYALPHA") And (match = "DDBLT_ALPHADESTSURFACEOVERRIDE")
-                ; msgbox const "`r`n`r`n" match "`r`n" var "`r`n`r`n" UserConstants
-            
             If (var = match) {
                 cValue := StrReplace(cValue,match,val,false,,1)
                 cValue := func_conv(cValue)

@@ -321,11 +321,15 @@ load_menubar() {
     mb_copy.Add()
     mb_copy.Add("&Copy selected constants (group)",menu_events)
     mb_copy.Add()
+    mb_copy.Add("View values as &Hex",menu_events,"+Radio")
+    mb_copy.Add("View values as &Decimal",menu_events,"+Radio")
+    mb_copy.Add()
     mb_copy.Add("&var := value",menu_events,"+Radio")
     mb_copy.Add("var &only",menu_events,"+Radio")
     
     var_cpy := (Settings.Has("var_copy")) ? Settings["var_copy"] : "&var := value"
     mb_copy.Check(var_cpy)
+    mb_copy.Check("View values as &" Settings["ViewBase"])
     
     mb_compile := menu()                    ; "Compile" root menu
     mb_compile.Add("&Uncheck all constants",menu_events)
@@ -366,8 +370,6 @@ menu_events(ItemName, ItemPos, _o) {
         Settings["ApiPath"] := Settings["Recents"][n]["Name"]
         Settings["gui"].Title := "C++ Constants Scanner - " Settings["Recents"][n]["Name"]
         Settings["gui"].Menubar := load_menubar()
-        ; msgbox n
-        ; _o.Check(n)
     } Else If (n = "C&ollect") Or (n = "&Includes Only") {
         Static scan_type := ["C&ollect","&Includes Only"] ; ,"x64 &MSVC","x86 M&SVC","x64 &GCC","x86 G&CC"]
         For typ in scan_type
@@ -400,9 +402,14 @@ menu_events(ItemName, ItemPos, _o) {
         Settings["var_copy"] := n
         _o.Uncheck("&var := value"), _o.Uncheck("var &only")
         _o.Check(n)
-        
-        
-        
+    } Else If InStr(n,"View values as") {
+        If InStr(n,"Hex")
+            Settings["ViewBase"] := "Hex"
+        Else If InStr(n,"Decimal")
+            Settings["ViewBase"] := "Decimal"
+        _o.Uncheck("View values as &Hex"), _o.Uncheck("View values as &Decimal")
+        _o.Check(n)
+        relist_const()
     } Else If (n="&Uncheck all constants") {
         g["ConstList"].Modify(0,"-Check")
     } Else If (n="&Add #INCLUDES for checked constants") {
