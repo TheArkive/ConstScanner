@@ -5,6 +5,7 @@
 
 class gui_control_ex extends Gui.Control {
     Static __New() {
+        super.prototype.GetColWidth := ObjBindMethod(this,"GetColWidth")
         super.prototype.GetCount := ObjBindMethod(this,"GetCount")
         super.prototype.GetText  := ObjBindMethod(this,"GetText")
         super.prototype.GetItems := ObjBindMethod(this,"GetItems")
@@ -15,6 +16,11 @@ class gui_control_ex extends Gui.Control {
     Static Checked(ctl,row) { ; ListView
         If (ctl.Type = "ListView") ; This was taken directly from the AutoHotkey help files.
             return (SendMessage(4140,row-1,0xF000,, "ahk_id " ctl.hwnd) >> 12) - 1 ; VM_GETITEMSTATE = 4140 / LVIS_STATEIMAGEMASK = 0xF000
+    }
+    
+    Static GetColWidth(ctl,n) {
+        If (ctl.Type = "ListView")
+            return SendMessage(0x101D, n-1, 0, ctl.hwnd)
     }
     
     Static GetCount(ctl,p*) { ; p* compensates for additional params when used with ListView

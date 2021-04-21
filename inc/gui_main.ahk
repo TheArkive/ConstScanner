@@ -39,7 +39,13 @@ load_gui() {
     
     ctl := g.Add("ListView","xm y+5 w1051 h300 vConstList Checked",["Name","Value","Type","File","D","C"]) ; w1050
     ctl.OnEvent("ContextMenu",gui_context)
-    ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,135), ctl.ModifyCol(4,200), ctl.ModifyCol(5,30), ctl.ModifyCol(6,30)
+    
+    If !Settings.Has("ColWidths")
+        Settings["ColWidths"] := [435, 190, 135, 200, 30, 30]
+    
+    Loop Settings["ColWidths"].Length
+        ctl.ModifyCol(A_Index, Settings["ColWidths"][A_Index])
+    ; ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,135), ctl.ModifyCol(4,200), ctl.ModifyCol(5,30), ctl.ModifyCol(6,30)
     ctl.OnEvent("click",gui_events)
     ctl.OnEvent("doubleclick",details_display)
     
@@ -78,10 +84,6 @@ load_gui() {
     g.Add("Radio","xs+" ColW " yp-25 vx64_GCC_Sel","x64:").OnEvent("click",gui_events)
     g.Add("Radio","xs+" CoLW " y+10 vx86_GCC_Sel","x86:").OnEvent("click",gui_events)
     
-    ; msgbox Settings["CompilerType"] " : " g[Settings["CompilerType"]].Value
-    
-    ; g[Settings["CompilerType"]].Value := 1
-    
     g.Add("Edit","xs+45 ys+22 w" width " vx64_MSVC",Settings["x64_MSVC"]).OnEvent("change",gui_events)
     g.Add("Edit","xs+45 y+2 w" width " vx86_MSVC",Settings["x86_MSVC"]).OnEvent("change",gui_events)
     g.Add("Edit","xs+" (ColW+45) " ys+22 w" width " vx64_GCC",Settings["x64_GCC"]).OnEvent("change",gui_events)
@@ -96,7 +98,13 @@ load_gui() {
     Else
         ctl.Text := "Please Wait ..."
     
-    g.Show("")
+    If !Settings["MinMax"]
+        g.Show("w" Settings["WH"][1] " h" Settings["WH"][2])
+    Else If Settings["MinMax"] = 1
+        g.Show("Maximize")
+    Else If Settings["MinMax"] = -1
+        g.Show("Minimize")
+        
     g["NameFilter"].Focus()
     
     g[Settings["CompilerType"]].Value := 1
@@ -105,25 +113,32 @@ load_gui() {
 }
 
 size_gui(o, MinMax, gW, gH) {
-    ; Global Settings
-    ; If Settings.Has("gui") {
-        ; g := Settings["gui"]
-        
-        o["ConstList"].Move(,,gW-25,gH-240)
-        o["Tabs"].Move(,gH-170,gW-25)
-        o["Tabs"].ReDraw()
-        o["Details"].Move(,,gW-25)
-        o["Duplicates"].Move(,,gW-25)
-        o["CritDep"].Move(,,gW-25)
-        
-        o["File"].Move(,gH-190,gW-515)
-        o["File"].ReDraw()
-        o["Total"].Move(,gH-20,gW-25)
-    ; }
+    Global Settings
+    Settings["MinMax"] := MinMax
+    Settings["WH"] := []
+    Settings["WH"].Push(gW)
+    Settings["WH"].Push(gH)
+    
+    o["ConstList"].Move(,,gW-25,gH-240)
+    o["Tabs"].Move(,gH-170,gW-25)
+    o["Tabs"].ReDraw()
+    o["Details"].Move(,,gW-25)
+    o["Duplicates"].Move(,,gW-25)
+    o["CritDep"].Move(,,gW-25)
+    
+    o["File"].Move(,gH-190,gW-515)
+    o["File"].ReDraw()
+    o["Total"].Move(,gH-20,gW-25)
 }
 
 close_gui(*) {
     Global Settings
+    
+    LV := Settings["gui"]["ConstList"]
+    Settings["ColWidths"] := []
+    Loop 6
+        Settings["ColWidths"].Push(LV.GetColWidth(A_Index))
+    
     Settings["ApiPath"] := "" ; these values are meant to be temporary, but need to be accessed globally
     Settings["BaseSearchDir"] := ""
     Settings["DefaultIncludes"] := Map()
@@ -414,7 +429,7 @@ menu_events(ItemName, ItemPos, _o) {
             Settings["ViewBase"] := "Decimal"
         _o.Uncheck("View values as &Hex"), _o.Uncheck("View values as &Decimal")
         _o.Check(n)
-        relist_const()
+        HexDecToggle()
     } Else If (n="&Uncheck all constants") {
         g["ConstList"].Modify(0,"-Check")
     } Else If (n="&Add #INCLUDES for checked constants") {

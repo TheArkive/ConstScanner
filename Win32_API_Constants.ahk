@@ -44,6 +44,8 @@ If (FileExist("settings.json")) {
 (!Settings.Has("temp_gui"))         ? Settings["temp_gui"]          := {hwnd:0} : ""
 (!Settings.Has("ViewBase"))         ? Settings["ViewBase"]          := "Decimal" : ""
 (!Settings.Has("MaxDispOpen"))      ? Settings["MaxDispOpen"]       := false : ""
+(!Settings.Has("MinMax"))           ? Settings["MinMax"]            := 0 : "" ; 1076, 529
+(!Settings.Has("WH"))               ? Settings["WH"]                := [1076,529] : ""
 
 (!Settings.Has("ApiPath"))          ? Settings["ApiPath"]           := "" : ""
 (!Settings.Has("ScanType"))         ? Settings["ScanType"]          := "C&ollect" : ""
@@ -386,11 +388,24 @@ up_down_nav(key) {
 HexDecToggle() {
     Global Settings
     val := Settings["ViewBase"]
+    
     If (val = "Hex")
         Settings["ViewBase"] := "Decimal"
     ELse
         Settings["ViewBase"] := "Hex"
-    relist_const()
+    
+    cur_disp := Settings["ViewBase"]
+    ; relist_const()
+    
+    LV := Settings["gui"]["ConstList"]
+    Loop LV.GetCount() {
+        const := LV.GetText(A_Index,1)
+        value := const_list[const]["value"]
+        
+        If IsInteger(value) And (cur_disp = "Hex")
+            LV.Modify(A_Index,"Col2",Format("0x{:X}",value))
+        Else LV.Modify(A_Index,"Col2",value)
+    }
 }
 
 #HotIf WinActive("ahk_id " Settings["gui"].hwnd)
