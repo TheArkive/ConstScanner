@@ -43,6 +43,7 @@ If (FileExist("settings.json")) {
 (!Settings.Has("doReset"))          ? Settings["doReset"]           := false : ""
 (!Settings.Has("temp_gui"))         ? Settings["temp_gui"]          := {hwnd:0} : ""
 (!Settings.Has("ViewBase"))         ? Settings["ViewBase"]          := "Decimal" : ""
+(!Settings.Has("MaxDispOpen"))      ? Settings["MaxDispOpen"]       := false : ""
 
 (!Settings.Has("ApiPath"))          ? Settings["ApiPath"]           := "" : ""
 (!Settings.Has("ScanType"))         ? Settings["ScanType"]          := "C&ollect" : ""
@@ -382,10 +383,21 @@ up_down_nav(key) {
     gui_events(ctl,nextRow)
 }
 
+HexDecToggle() {
+    Global Settings
+    val := Settings["ViewBase"]
+    If (val = "Hex")
+        Settings["ViewBase"] := "Decimal"
+    ELse
+        Settings["ViewBase"] := "Hex"
+    relist_const()
+}
+
 #HotIf WinActive("ahk_id " Settings["gui"].hwnd)
 
 ^+d::copy_const_details()
 ^d::copy_const_only()
+^space::HexDecToggle()
 
 F2::{
     Global const_list
@@ -405,6 +417,4 @@ F2::{
     A_Clipboard := critList
 }
 
-; F3::{
-    ; SendMessage(0x018B)
-; }
+F3::details_display()

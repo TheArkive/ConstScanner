@@ -41,6 +41,7 @@ load_gui() {
     ctl.OnEvent("ContextMenu",gui_context)
     ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,135), ctl.ModifyCol(4,200), ctl.ModifyCol(5,30), ctl.ModifyCol(6,30)
     ctl.OnEvent("click",gui_events)
+    ctl.OnEvent("doubleclick",details_display)
     
     ; g.Add("Text","xm y+5 vHelper","Press CTRL+D to copy selected constant details.")
     g.Add("Text","x500 y+5 w560 Right vFile","Data File:")
@@ -164,6 +165,10 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
         load_filters()
     } Else If (n="integer" Or n="float" Or n="string" Or n="unknown" Or n="other" Or n="expr" Or n="dupe" Or n="crit" Or n="struct" Or n="enum") {
         Settings["Check" n] := ctl.Value
+    } Else If (n = "NameBW") {
+        g["NameFilter"].Focus()
+    } Else If (n = "ValueEQ") {
+        g["ValueFilter"].Focus()
     } Else If (n = "Reset") {
         g["NameFilter"].Value := ""
         g["ValueFilter"].Value := ""
@@ -205,7 +210,7 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
         
         If (constType = "Struct" Or constType = "Enum") {
             g["Details"].Value := (dupes ? "Duplicate Values Exist`r`n`r`n" : "")
-                                . constValue "`r`n"
+                                . StrReplace(constValue,"\t"," ") "`r`n"
                                 . "`r`nType:  " constType "    /    File:  " constFile "    /    Line:  " constLine
         } Else {
             g["Details"].Value := (dupes ? "Duplicate Values Exist`r`n`r`n" : "")
@@ -541,4 +546,55 @@ result_close2(ctl,info) {
 
 result_close(_gui) {
     _gui.Destroy()
+}
+
+; ==================================================================
+; ==================================================================
+; Details display GUI
+; ==================================================================
+; ==================================================================
+
+details_display(*) {
+    Global Settings
+    _main := Settings["gui"]
+    g := Gui("+Resize +Owner" _main.hwnd, "Details Display")
+    g.OnEvent("Escape",details_close)
+    g.OnEvent("Close",details_close)
+    g.OnEvent("Size",details_size)
+    
+    ctl := g.Add("Edit","vDisp w750 h750 ReadOnly")
+    ctl.Value := _main["Details"].Value
+    ctl.SetFont("s12","Consolas")
+    PostMessage 0xB1, 0, 0, ctl.hwnd
+    
+    g.Add("Text","vTxtMsg y+10","Press ESC to exit.")
+    ctl := g.Add("CheckBox","vMaxDispOpen","Maximize on open")
+    ctl.OnEvent("Click",details_event)
+    ctl.value := Settings["MaxDispOpen"]
+    
+    Settings["MaxDispOpen"] ? g.Show("Maximize") : g.Show()
+    
+    WinSetEnabled false, "ahk_id " _main.hwnd
+}
+
+details_event(ctl, info) {
+    If (ctl.name = "MaxDispOpen")
+        Settings["MaxDispOpen"] := true
+}
+
+details_close(_gui) {
+    Global Settings
+    _main := Settings["gui"]
+    _gui.Destroy()
+    
+    WinSetEnabled true, "ahk_id " _main.hwnd
+    WinActivate "ahk_id " _main.hwnd 
+}
+
+details_size(g, MinMax, w, h) {
+    g["Disp"].Move(,,w-(g.MarginX * 2),h-(g.MarginY * 2)-20)
+    g["TxtMsg"].Move(,h-(g.MarginY * 2)-7)
+    
+    g["MaxDispOpen"].GetPos(,,&_w)
+    g["MaxDispOpen"].Move(w-(g.MarginX * 2)-_w,h-(g.MarginY * 2)-7)
 }
