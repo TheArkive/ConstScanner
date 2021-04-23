@@ -1,5 +1,5 @@
 load_gui() {
-    g := Gui("+OwnDialogs +Resize +MinSize1076x488","C++ Constants Scanner")
+    g := Gui("+OwnDialogs +Resize +MinSize1076x400","C++ Constants Scanner")
     g.OnEvent("close",close_gui), g.OnEvent("size",size_gui)
     g.SetFont("s10","Consolas")
     
@@ -156,15 +156,15 @@ close_gui(*) {
 
 gui_context(ctl, Item, rc, X, Y) {
     m := Menu()
-    m.Add("&Copy Constants (group)",ListView_MenuEvent)
-    m.Add("Copy Constant Details (single - &Focused)",ListView_MenuEvent)
+    m.Add("&Copy Selected Constants (group)",ListView_MenuEvent)
+    m.Add("Copy Selected Constant Details (single - &Focused)",ListView_MenuEvent)
     m.Show()
 }
 
 ListView_MenuEvent(ItemName, ItemPos, Menu) {
-    If (ItemName = "&Copy Constants (group)")
+    If (ItemName = "&Copy Selected Constants (group)")
         copy_const_group()
-    Else If (ItemName = "Copy Constant Details (single - &Focused)")
+    Else If (ItemName = "Copy Selected Constant Details (single - &Focused)")
         copy_const_details()
 }
 
@@ -536,10 +536,8 @@ copy_const_group() {
     While(n := g["ConstList"].GetNext(n)) {
         If StrReplace(Settings["var_copy"],"&","") = "var only"
             list .= g["ConstList"].GetText(n) "`r`n"
-        Else If StrReplace(Settings["var_copy"],"&","") = "var := value" {
-            value := (IsInteger(value:=g["ConstList"].GetText(n,2))) ? Format("0x{:X}",value) : value
-            list .= g["ConstList"].GetText(n) " := " value "`r`n"
-        }
+        Else If StrReplace(Settings["var_copy"],"&","") = "var := value"
+            list .= g["ConstList"].GetText(n) " := " g["ConstList"].GetText(n,2) "`r`n"
     }
     A_Clipboard := list
 }
