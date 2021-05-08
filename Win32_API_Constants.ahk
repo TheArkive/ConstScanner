@@ -15,6 +15,21 @@
 
 #NoTrayIcon
 
+#INCLUDE libs\_JXON.ahk
+#INCLUDE libs\TheArkive_CliSAK.ahk
+#INCLUDE libs\TheArkive_Progress2.ahk
+#INCLUDE libs\_eval.ahk
+#INCLUDE libs\TheArkive_GuiCtlExt.ahk
+
+#INCLUDE "*i libs\TheArkive_Debug.ahk"
+
+#INCLUDE inc\gui_edit_recents.ahk
+#INCLUDE inc\gui_extra_dirs.ahk
+#INCLUDE inc\gui_filters.ahk
+#INCLUDE inc\gui_incl_report.ahk
+#INCLUDE inc\gui_main.ahk
+#INCLUDE inc\header_parser.ahk
+
 Global Settings:=Map()
 ; Global g:="", g3:="" ; Gui obj
 Global c:="" ; console obj
@@ -56,6 +71,7 @@ If (FileExist("settings.json")) {
 (!Settings.Has("CompilerType"))     ? Settings["CompilerType"]      := "x64_MSVC_Sel" : ""
 (!Settings.Has("AddIncludes"))      ? Settings["AddIncludes"]       := true : ""
 (!Settings.Has("var_copy"))         ? Settings["var_copy"]          := "&var := value" : ""
+(!Settings.Has("var_copy_comment")) ? Settings["var_copy_comment"]  := false : ""
 
 (!Settings.Has("FileFilter"))       ? Settings["FileFilter"]        := "" : ""
 (!Settings.Has("CheckInteger"))     ? Settings["CheckInteger"]      := 1 : ""
@@ -87,24 +103,7 @@ If (Settings["AutoLoad"] And FileExist(Settings["LastFile"])) { ; load data if A
 OnMessage(0x0100,WM_KEYDOWN) ; WM_KEYDOWN
 OnMessage(0x0200,WM_MOUSEMOVE) ; WM_MOUSEMOVE
 
-return ; end auto-exec section
-
-#INCLUDE libs\_JXON.ahk
-#INCLUDE libs\TheArkive_CliSAK.ahk
-#INCLUDE libs\TheArkive_Progress2.ahk
-#INCLUDE libs\TheArkive_eval.ahk
-#INCLUDE libs\TheArkive_GuiExt.ahk
-
-#INCLUDE "*i libs\TheArkive_Debug.ahk"
-
-; #INCLUDE inc\gui_edit_default_includes.ahk
-#INCLUDE inc\gui_edit_recents.ahk
-#INCLUDE inc\gui_extra_dirs.ahk
-#INCLUDE inc\gui_filters.ahk
-#INCLUDE inc\gui_incl_report.ahk
-#INCLUDE inc\gui_main.ahk
-#INCLUDE inc\header_parser.ahk
-; #INCLUDE inc\parser_compiler.ahk
+; return ; end auto-exec section
 
 WM_KEYDOWN(wParam, lParam, msg, hwnd) { ; up / down scrolling with keyboard
     If (filter_check(hwnd) And wParam = 13) ; pressing enter for filters

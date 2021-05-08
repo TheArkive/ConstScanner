@@ -1,7 +1,8 @@
-﻿; AHK v2
+﻿;;;; AHK v2
 ; Example ===================================================================================
 ; ===========================================================================================
 
+; Msgbox "The idea here is to create several nested arrays, save to text with jxon_dump(), and then reload the array with jxon_load().  The resulting array should be the same.`r`n`r`nThis is what this example shows."
 ; a := Map(), b := Map(), c := Map(), d := Map(), e := Map(), f := Map() ; Object() is more technically correct than {} but both will work.
 
 ; d["g"] := 1, d["h"] := 2, d["i"] := ["purple","pink","pippy red"]
@@ -18,27 +19,19 @@
 ; g := ["blue","green","red"], myObj["h"] := g ; add linear array for testing
 
 ; q := Chr(34)
-; textData2 := Jxon_dump(myObj,4) ; ===> convert array to XML
-; msgbox "XML Breakdown:`r`n===========================================`r`n(Should match second breakdown.)`r`n`r`n" textData2
+; textData2 := Jxon_dump(myObj,4) ; ===> convert array to JSON
+; msgbox "JSON output text:`r`n===========================================`r`n(Should match second output.)`r`n`r`n" textData2
 
-; ===========================================================================================
-; Error Test - Duplicate Node ; =============================================================
-; ===========================================================================================
-; textData2 := StrReplace(textData2,"</Base>","<test8 type=" q "String" q ">test88</test8>`r`n</Base>") ; <--- test error, duplicate node
-; ===========================================================================================
-; ===========================================================================================
-
-; newObj := Jxon_load(textData2) ; ===> convert XML back to array
+; newObj := Jxon_load(&textData2) ; ===> convert json back to array
 
 ; textData3 := Jxon_dump(newObj,4) ; ===> break down array into 2D layout again, should be identical
-; msgbox "Second Breakdown:`r`n===========================================`r`n(should be identical to first breakdown)`r`n`r`n" textData3
+; msgbox "Second output text:`r`n===========================================`r`n(should be identical to first output)`r`n`r`n" textData3
 
 ; ExitApp
 
 ; ===========================================================================================
 ; End Example ; =============================================================================
 ; ===========================================================================================
-
 
 ; originally posted by user coco on AutoHotkey.com
 ; https://github.com/cocobelgica/AutoHotkey-JSON
@@ -186,9 +179,6 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 			if IsObject(k) || (k == "")
 				throw Error("Invalid object key.", -1, k ? Format("<Object at 0x{:p}>", ObjPtr(obj)) : "<blank>")
 			
-			; If (k = "")
-				; Continue
-			
 			if !is_array ;// key ; ObjGetCapacity([k], 1)
 				out .= (ObjGetCapacity([k]) ? Jxon_Dump(k) : q k q) (indent ? ": " : ":") ; token + padding
 			
@@ -207,12 +197,12 @@ Jxon_Dump(obj, indent:="", lvl:=1) {
 		If (Type(obj) != "String")
 			return obj
 		Else {
+            obj := StrReplace(obj,"\","\\")
 			obj := StrReplace(obj,"`t","\t")
 			obj := StrReplace(obj,"`r","\r")
 			obj := StrReplace(obj,"`n","\n")
 			obj := StrReplace(obj,"`b","\b")
 			obj := StrReplace(obj,"`f","\f")
-			obj := StrReplace(obj,"\","\\")
 			obj := StrReplace(obj,"/","\/")
 			obj := StrReplace(obj,q,"\" q)
 			return q obj q

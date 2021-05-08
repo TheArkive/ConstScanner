@@ -58,7 +58,7 @@ includes_report() {
             
             constValue := "" ; init value
             If (RegExMatch(curLine,"i)^\#include[ `t]+(<|\" q ")?([^>" q "]+)(>|\" q ")?",&m)) { ; include line
-                match := StrReplace(StrReplace(m.Value(2),q,""),"/","\")
+                match := StrReplace(StrReplace(m[2],q,""),"/","\")
                 
                 If !(cur_incl := get_full_path(match,baseFolders)) {
                     cur_incl := match
@@ -160,7 +160,7 @@ header_parser() {
             
             constValue := "" ; init value
             If (RegExMatch(curLine,rg1,&m)) { ; include line
-                match := StrReplace(StrReplace(m.Value(2),q,""),"/","\")
+                match := StrReplace(StrReplace(m[2],q,""),"/","\")
                 
                 If !(cur_incl := get_full_path(match,baseFolders)) {
                     cur_incl := match
@@ -172,12 +172,12 @@ header_parser() {
                     IncludesList[StrReplace(fullPath,"\","|")].Push([match,cur_incl])   ; Main IncludesList
                 
             } Else If (RegExMatch(curLine,rg2,&m)) { ; match constants
-                constName := m.Value(1), constExp := m.Value(2)
+                constName := m[1], constExp := m[2]
                 lineNum := cnt
                 
                 comment := ""
                 If (RegExMatch(constExp,"([ `t]*//.*|[ `t]*/\*.*)",&m2)) {
-                    comment := Trim(m2.Value(0)," `t")
+                    comment := Trim(m2[0]," `t")
                     constExp := prune_comments(constExp)
                 }
                 
@@ -228,7 +228,7 @@ header_parser() {
                     cnt++
                     Continue
                 } Else If RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)[ `t]*\x7B.*?\x7D;$",&m) {
-                    full := m.Value(0), constType := StrUpper(m.Value(1),"T"), constName := m.Value(2)
+                    full := m[0], constType := StrUpper(m[1],"T"), constName := m[2]
                 } Else If ( RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)(?:[ `t]*\x7B)?$",&m)
                          Or RegExMatch(td:=cL,"i)^[ `t]*(?:typedef|enum|struct)[ `t]*$") ) {
                     
@@ -240,9 +240,9 @@ header_parser() {
                             Continue ; main while loop
                         }
                     } Else
-                        full := m.Value(0)
+                        full := m[0]
                     
-                    constType := m.Value(1), constName := m.Value(2)
+                    constType := m[1], constName := m[2]
                     If (constType != "struct" And constType != "enum") {
                         cnt++
                         Continue ; main while loop
@@ -482,14 +482,14 @@ do_subs(obj,const:="") {
     cValue := func_conv(cValue) ; func type conversion improved
     
     While RegExMatch(cValue,"\x28 ?(" casting ")(?:_PTR)? ?\x29",&_m) ; remove initial type casting
-        cValue := StrReplace(cValue,_m.Value(0),"")
+        cValue := StrReplace(cValue,_m[0],"")
     
     cValue := number_cleanup(cValue) ; try to clean up number formats, and convert hex to base-10
     newPos := 1
     
     Static rgx := "([_A-Z][\w_]+\x28?)" ; "((?<!\d)[A-Z_][\w]+)"
     r := RegExMatch(cValue,"i)" rgx,&m), match := ""
-    (IsObject(m) And m.Count()) ? match := m.Value(1) : "" ; attempt to capture first match
+    (IsObject(m) And m.Count()) ? match := m[1] : "" ; attempt to capture first match
     
     ; =============================================
     ; If InStr(const,"API_SET_CHPE_GUEST") = 1
@@ -502,7 +502,7 @@ do_subs(obj,const:="") {
         If RegExMatch(match,"i)(^[_A-Z][\w_]+\x28$)") { ; if match is "func(", advance search now to find next constant
             r := RegExMatch(cValue,"i)" rgx,&m, r+m.Len(1)), match := "", newPos := 1 ; prep for next iteration
             If IsObject(m)
-                match := m.Value(1)
+                match := m[1]
             Else Break ; no match, break and move on
         }
         
@@ -523,7 +523,7 @@ do_subs(obj,const:="") {
                 
                 r := RegExMatch(cValue,"i)" rgx,&m), match := "", newPos := 1 ; prep for next iteration
                 If IsObject(m)
-                    match := m.Value(1)
+                    match := m[1]
                 user_const := true
                 Break
             }
@@ -570,7 +570,7 @@ do_subs(obj,const:="") {
         
         r := RegExMatch(cValue,"i)" rgx,&m), match := "", newPos := 1 ; prep for next iteration
         If IsObject(m)
-            match := m.Value(1)
+            match := m[1]
         Else Break ; no match, break and move on
         
         ; =================================
@@ -661,14 +661,14 @@ number_cleanup(inValue) {
         If !IsObject(m) Or (m.Count() < 2)
             Break
         
-        cValue := StrReplace(cValue,m.Value(0),m.Value(1),,,1) ; replace hex with decimal
+        cValue := StrReplace(cValue,m[0],m[1],,,1) ; replace hex with decimal
     }
     
     While RegExMatch(cValue,"i)(" hex ")",&n) {
         If !IsObject(n) Or (!n.Count())
             Break
         
-        match := n.Value(1)
+        match := n[1]
         _num :=  (IsInteger(match)) ? Integer(match) : (IsFloat(match)) ? Float(match) : match
         cValue := StrReplace(cValue,match,_num,,,1) ; replace hex with decimal
     }

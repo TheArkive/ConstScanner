@@ -346,10 +346,15 @@ load_menubar() {
     mb_copy.Add()
     mb_copy.Add("&var := value",menu_events,"+Radio")
     mb_copy.Add("var &only",menu_events,"+Radio")
+    mb_copy.Add()
+    mb_copy.Add("&Prepend comment char on copy",menu_events)
     
     var_cpy := (Settings.Has("var_copy")) ? Settings["var_copy"] : "&var := value"
     mb_copy.Check(var_cpy)
     mb_copy.Check("View values as &" Settings["ViewBase"])
+    
+    If Settings["var_copy_comment"]
+        mb_copy.Check("&Prepend comment char on copy")
     
     mb_compile := menu()                    ; "Compile" root menu
     mb_compile.Add("&Uncheck all constants",menu_events)
@@ -422,6 +427,14 @@ menu_events(ItemName, ItemPos, _o) {
         Settings["var_copy"] := n
         _o.Uncheck("&var := value"), _o.Uncheck("var &only")
         _o.Check(n)
+    } Else If (n="&Prepend comment char on copy") {
+        If Settings["var_copy_comment"] {
+            Settings["var_copy_comment"] := false
+            _o.UnCheck(n)
+        } Else {
+            Settings["var_copy_comment"] := true
+            _o.Check(n)
+        }
     } Else If InStr(n,"View values as") {
         If InStr(n,"Hex")
             Settings["ViewBase"] := "Hex"
@@ -445,10 +458,10 @@ menu_events(ItemName, ItemPos, _o) {
         RegExMatch(Settings["CompilerType"],"^(x86|x64)_(MSVC|GCC)",&m)
         
         If (IsObject(m) And m.Count() = 2) {
-            If (m.Value(2) = "MSVC")
-                error_check := CliData("vcvars " m.Value(1) " & cl /EHsc test_const.cpp")
-            Else If (m.Value(2) = "GCC")
-                error_check := CliData("msystem mingw" StrReplace(m.Value(1),"x","") " & g++ -o test_const.exe test_const.cpp")
+            If (m[2] = "MSVC")
+                error_check := CliData("vcvars " m[1] " & cl /EHsc test_const.cpp")
+            Else If (m[2] = "GCC")
+                error_check := CliData("msystem mingw" StrReplace(m[1],"x","") " & g++ -o test_const.exe test_const.cpp")
             
             If FileExist("test_const.exe") {
                 r := CliData("test_const.exe"), final := ""
@@ -520,24 +533,27 @@ scan_now() {
 }
 
 copy_const_details() {
-    A_Clipboard := Settings["gui"]["Details"].Value
+    comment := (Settings["var_copy_comment"]) ? "; " : ""
+    final := ""
+    Loop Parse Settings["gui"]["Details"].Value, "`n", "`r"
+        final .= ((A_Index=1)?"":"`r`n") comment A_LoopField
+    A_Clipboard := final
 }
 
 copy_const_only() {
-    n := Settings["gui"]["ConstList"].GetNext()
-    If (n) {
-        t := Settings["gui"]["ConstList"].GetText(n)
-        A_Clipboard := t
-    }
+    comment := (Settings["var_copy_comment"]) ? "; " : ""
+    If (n := Settings["gui"]["ConstList"].GetNext())
+        A_Clipboard := comment Settings["gui"]["ConstList"].GetText(n)
 }
 
 copy_const_group() {
     list := "", n := 0, g := Settings["gui"]
+    comment := (Settings["var_copy_comment"]) ? "; " : ""
     While(n := g["ConstList"].GetNext(n)) {
         If StrReplace(Settings["var_copy"],"&","") = "var only"
-            list .= g["ConstList"].GetText(n) "`r`n"
+            list .= ((A_Index=1)?"":"`r`n") comment g["ConstList"].GetText(n)
         Else If StrReplace(Settings["var_copy"],"&","") = "var := value"
-            list .= g["ConstList"].GetText(n) " := " g["ConstList"].GetText(n,2) "`r`n"
+            list .= ((A_Index=1)?"":"`r`n") comment g["ConstList"].GetText(n) " := " g["ConstList"].GetText(n,2)
     }
     A_Clipboard := list
 }
