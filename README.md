@@ -32,6 +32,6 @@ Constant values with multiple definitions are referred to as "Dupes" in the GUI 
 
 * append user-defined constants to database files, and make this list visible
 
-Please use the latest AutoHotkey v2 alpha (currently a131).
+Please use the latest AutoHotkey v2 alpha (currently a134).
 
 https://www.autohotkey.com/download/2.0/
