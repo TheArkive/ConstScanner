@@ -457,7 +457,7 @@ menu_events(ItemName, ItemPos, _o) {
         create_cpp_file()
         RegExMatch(Settings["CompilerType"],"^(x86|x64)_(MSVC|GCC)",&m)
         
-        If (IsObject(m) And m.Count() = 2) {
+        If (IsObject(m) And m.Count = 2) {
             If (m[2] = "MSVC")
                 error_check := CliData("vcvars " m[1] " & cl /EHsc test_const.cpp")
             Else If (m[2] = "GCC")
