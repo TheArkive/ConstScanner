@@ -235,7 +235,7 @@ header_parser() {
                     If (td) {
                         RegExMatch(fArr[cnt+1],"i)^[ `t]*(enum|struct)[ `t]+([a-z0-9_]+)",&m)
                         full := "typedef"
-                        If (!IsObject(m) Or m.Count() = 0) {
+                        If (!IsObject(m) Or m.Count = 0) {
                             cnt++
                             Continue ; main while loop
                         }
@@ -489,7 +489,7 @@ do_subs(obj,const:="") {
     
     Static rgx := "([_A-Z][\w_]+\x28?)" ; "((?<!\d)[A-Z_][\w]+)"
     r := RegExMatch(cValue,"i)" rgx,&m), match := ""
-    (IsObject(m) And m.Count()) ? match := m[1] : "" ; attempt to capture first match
+    (IsObject(m) And m.Count) ? match := m[1] : "" ; attempt to capture first match
     
     ; =============================================
     ; If InStr(const,"API_SET_CHPE_GUEST") = 1
@@ -658,14 +658,14 @@ number_cleanup(inValue) {
         test := true
     
     While RegExMatch(cValue,"i)(" num ")(" typs ")",&m) {
-        If !IsObject(m) Or (m.Count() < 2)
+        If !IsObject(m) Or (m.Count < 2)
             Break
         
         cValue := StrReplace(cValue,m[0],m[1],,,1) ; replace hex with decimal
     }
     
     While RegExMatch(cValue,"i)(" hex ")",&n) {
-        If !IsObject(n) Or (!n.Count())
+        If !IsObject(n) Or (!n.Count)
             Break
         
         match := n[1]

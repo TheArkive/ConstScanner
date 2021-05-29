@@ -2,12 +2,6 @@
 ; GuiControl_Ex
 ; ==================================================================
 
-; class gui_control_ex extends Gui.Control { ; Gui.Control is now an "Unknown" class.
-    ; Static __New() {
-        ; For prop, value in this.prototype.OwnProps()
-            ; super.prototype.%prop% := this.prototype.%prop%
-    ; }
-
 class ListComboBox_Ext {
     Static __New() {
         For prop in this.Prototype.OwnProps() {
@@ -47,7 +41,7 @@ class ListComboBox_Ext {
     }
 }
 
-class ListView_Ext { ; Technically no need to extend classes unless
+class ListView_Ext extends Gui.ListView { ; Technically no need to extend classes unless
     Static __New() { ; you are attaching new base on control creation.
         For prop in this.Prototype.OwnProps()
             super.Prototype.%prop% := this.Prototype.%prop%
@@ -64,5 +58,18 @@ class ListView_Ext { ; Technically no need to extend classes unless
     }
     GetColWidth(n) {
         return SendMessage(0x101D, n-1, 0, this.hwnd)
+    }
+}
+
+class PicButton extends Gui.Button {
+    Static __New() {
+        For prop in this.Prototype.OwnProps()
+            super.Prototype.%prop% := this.Prototype.%prop%
+    }
+    SetImg(sFile, sOptions:="") { ; input params exact same as first 2 params of LoadPicture()
+        curStyle := ControlGetStyle(this.hwnd)
+        ControlSetStyle (curStyle | 0x40), this.hwnd
+        hIco := LoadPicture(sFile, sOptions, &type)
+        return SendMessage(0xF7, 1, hIco, this.hwnd) ; BM_SETIMAGE
     }
 }

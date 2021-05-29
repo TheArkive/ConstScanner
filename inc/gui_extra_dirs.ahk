@@ -175,8 +175,15 @@ gui_events2(ctl,info) {
             path := Trim(path,"`t ")
             (!FileExist(path)) ? path := get_full_path(path,ctl.gui["BaseFolder"].GetItems()) : ""
             If (path) {
-                ctl.gui["OtherDirList"].Add("Icon1",path)
-                Settings["MakeProfile"].Push(0,1,path)
+                go := true
+                Loop ctl.gui["OtherDirList"].GetCount() { ; check for dupes
+                    If (ctl.gui["OtherDirList"].GetText(A_Index) = path) {
+                        go := false
+                        Break
+                    }
+                }
+                
+                go ? ctl.gui["OtherDirList"].Add("Icon1",path) : ""
             }
         }
         
