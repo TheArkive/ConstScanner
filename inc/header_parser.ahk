@@ -228,7 +228,7 @@ header_parser() {
                     cnt++
                     Continue
                 } Else If RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)[ `t]*\x7B.*?\x7D;$",&m) {
-                    full := m[0], constType := StrUpper(m[1],"T"), constName := m[2]
+                    full := m[0], constType := StrTitle(m[1]), constName := m[2]
                 } Else If ( RegExMatch(cL,"i)^[ `t]*(?:typedef[ `t]+)?(enum|struct)[ `t]+([a-z0-9_]+)(?:[ `t]*\x7B)?$",&m)
                          Or RegExMatch(td:=cL,"i)^[ `t]*(?:typedef|enum|struct)[ `t]*$") ) {
                     
@@ -271,7 +271,7 @@ header_parser() {
                 
                 If (full)
                     commit_item(constName,Map("exp","","comment","","file",file_name,"line",lineNum
-                               ,"value",Trim(full," `t"),"type",StrUpper(constType,"T"))) ; commit item to main array
+                               ,"value",Trim(full," `t"),"type",StrTitle(constType))) ; commit item to main array
             }
             
             prevLine := curLine, td := ""

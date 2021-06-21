@@ -19,7 +19,7 @@
 #INCLUDE libs\TheArkive_CliSAK.ahk
 #INCLUDE libs\TheArkive_Progress2.ahk
 #INCLUDE libs\_eval.ahk
-#INCLUDE libs\TheArkive_GuiCtlExt.ahk
+#INCLUDE libs\_GuiCtlExt.ahk
 
 #INCLUDE "*i libs\TheArkive_Debug.ahk"
 
