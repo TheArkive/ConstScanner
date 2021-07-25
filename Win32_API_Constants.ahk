@@ -21,8 +21,6 @@
 #INCLUDE libs\_eval.ahk
 #INCLUDE libs\_GuiCtlExt.ahk
 
-#INCLUDE "*i libs\TheArkive_Debug.ahk"
-
 #INCLUDE inc\gui_edit_recents.ahk
 #INCLUDE inc\gui_extra_dirs.ahk
 #INCLUDE inc\gui_filters.ahk
@@ -405,6 +403,11 @@ HexDecToggle() {
             LV.Modify(A_Index,"Col2",Format("0x{:X}",value))
         Else LV.Modify(A_Index,"Col2",value)
     }
+}
+
+dbg(_in) {
+    Loop Parse _in, "`n", "`r"
+        OutputDebug "AHK: " A_LoopField
 }
 
 #HotIf WinActive("ahk_id " Settings["gui"].hwnd)
