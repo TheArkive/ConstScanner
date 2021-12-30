@@ -15,9 +15,8 @@ ANOTHER NOTE:  The old `.data` files will not work with this update.  Please dow
 ## Highlights
 * Inspired by [Constants.ahk](https://autohotkey.com/board/topic/18177-crazy-scripting-list-of-win32-constants/) (written by SKAN)
 * Flexible and searchable database for referencing API constants.
-* Scans and catalogs structs, enums, macros, UUIDs, and all #define entries.
-* All `#preprocessors` are now parsed to get a more accurate set of constants.\
-Architecture must be defined
+* Scans and catalogs Integers, Floats, Strings, Structs, Enums, Macros, and UUIDs.
+* All `#preprocessors` are now parsed to get a more accurate set of constants.
 * Create profiles of user-defined groups of headers.
 * Set user-defined constants so you can keep your database files lean with only the constants you want to list in a given API.
 * Setup this script with a compiler of your choice for checking constants (recommended MSVC BuildTools or GCC variant, like MinGW32/64 or TDGCC).\
@@ -122,6 +121,7 @@ NOTE:  "Dupes" and "Critical" constants used to be "a thing" in this script.  No
 
 ## Planned changes:
 
+* Dump x86 constants for Win10.
 * Dig into GCC MinGW compiler and its WIN32 source files.\
 This will likely yield a different set of global constants for the GCC compiler.  I plan to include these default global settings in the future.
 * Calculate struct sizes and field offsets (aligned and unaligned) without the compiler (I still will spot check with the compiler though).
