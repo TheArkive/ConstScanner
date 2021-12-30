@@ -1,28 +1,30 @@
 incl_report() {
-    Global Settings
-    g3 := Gui("-MinimizeBox -MaximizeBox +Owner" Settings["gui"].hwnd,"#INCLUDES Report")
+    Global Settings, sizeof_list
+    g3 := Gui("-MinimizeBox -MaximizeBox +Owner" app.mainGUI.hwnd,"Types List")
     g3.OnEvent("close",g3_close)
     g3.OnEvent("escape",g3_escape)
     
     g3.Add("Edit","xm w370 vFilter").OnEvent("change",gui_events3)
     g3.Add("Button","x+0 w30 vClearFilter","X").OnEvent("click",gui_events3)
     ctl := g3.Add("Edit","xm w400 h400 ReadOnly y+2 vReport")
+    ctl.SetFont(,"Consolas")
+    ctl.value := jxon_dump(sizeof_list,4)
     
     g3.Add("Button","xm y+0 w400 vCopy","Copy").OnEvent("click",gui_events3)
     
     g3.Show()
     
     incl_report_filter(g3)
-    Static bf := incl_report_filter.Bind(g3)
-    Settings["BoundFunc"] := bf
+    ; Static bf := incl_report_filter.Bind(g3)
+    ; app.BoundFunc := bf
     
-    WinSetEnabled False, Settings["gui"].hwnd
+    WinSetEnabled False, app.mainGUI.hwnd
 }
 
 g3_close(_gui) {
     Global Settings
-    WinActivate "ahk_id " Settings["gui"].hwnd
-    WinSetEnabled True, Settings["gui"].hwnd
+    WinActivate "ahk_id " app.mainGUI.hwnd
+    WinSetEnabled True, app.mainGUI.hwnd
 }
 
 g3_escape(_gui) {
@@ -33,10 +35,12 @@ g3_escape(_gui) {
 gui_events3(ctl,info) {
     Global Settings
     If (ctl.Name = "Filter") {
-        SetTimer Settings["BoundFunc"], -500
+        ; SetTimer Settings["BoundFunc"], -500
+        incl_report_filter(ctl.gui)
     } Else If (ctl.Name = "ClearFilter") {
         ctl.gui["Filter"].Value := ""
-        SetTimer Settings["BoundFunc"], -500
+        ; SetTimer Settings["BoundFunc"], -500
+        incl_report_filter(ctl.gui)
     } Else If (ctl.Name = "Copy")
         A_Clipboard := ctl.gui["Report"].Value
 }
@@ -45,56 +49,33 @@ incl_report_filter(g3) {
     Global IncludesList
     filter_txt := g3["Filter"].Value
     final_list := Map()
+    rData := ""
+    longest := 10
     
-    If (filter_txt != "") {
-        For incl, list in IncludesList {
-            incl := StrReplace(incl,"|","\")
-            SplitPath incl, &inc_file
-            
-            If InStr(inc_file,filter_txt) {
-                new_list := []
-                For k, v in list {
-                    ; SplitPath v[1], sub_inc
-                    new_list.Push(v[1]) ; sub_inc)
-                }
-                final_list[inc_file] := new_list
-            } Else {
-                add_list := false
-                final_list[inc_file] := []
-                new_list := []
-                
-                For k, v in list {
-                    ; SplitPath v, sub_inc
-                    
-                    if InStr(v[1],filter_txt) { ; param 1 was:  sub_inc
-                        add_list := true
-                        new_list.Push(v[1] " <---------- match") ; sub_inc " <---------- match")
-                    } Else
-                        new_list.Push(v[1]) ; sub_inc)
-                }
-                
-                If add_list
-                    final_list[inc_file] := new_list
-            }
-            
-            If !final_list[inc_file].Length
-                final_list.Delete(inc_file)
-        }
-    } Else {
-        For incl, list in IncludesList {
-            incl := StrReplace(incl,"|","\")
-            SplitPath incl, inc_file
-            final_list[inc_file] := []
-            For v in list {
-                ; SplitPath v, sub_file
-                ; msgbox "test: " v[1]
-                final_list[inc_file].Push(v[1]) ; sub_file)
-            }
-        }
+    For _type, _size in sizeof_list {
+        If StrLen(_type) > longest
+            longest := StrLen(_type)
     }
     
-    rData := StrReplace(jxon_dump(final_list,4),"\\","\")
-    rData := StrReplace(rData,"\/","/")
-    rData := StrReplace(rData,Chr(34),"")
+    rData := Format("{1:-" longest "}  Size","Type") "`r`n"
+    rData .= rpt("=",longest + 6) "`r`n"
+    
+    If (filter_txt != "") {
+        For _type, _size in sizeof_list {
+            If InStr(_type,filter_txt)
+                rData .= (rData?"`r`n":"") Format("{:-" longest "} {2: 4}",_type,_size)
+        }
+    } Else {
+        For _type, _size in sizeof_list
+            rData .= (rData?"`r`n":"") Format("{:-" longest "} {2: 4}",_type,_size)
+    }
+    
     g3["Report"].Value := rData
+    
+    rpt(str,reps) { ; closure
+        final_str := ""
+        Loop reps
+            final_str .= str
+        return final_str
+    }
 }

@@ -4,7 +4,7 @@ recents_gui() {
     For rec in Settings["Recents"]
         recents_list.Push(StrReplace(rec,"|","\"))
     
-    g4 := Gui("-MinimizeBox -MaximizeBox +Owner" Settings["gui"].hwnd,"Edit Recents")
+    g4 := Gui("-MinimizeBox -MaximizeBox +Owner" app.mainGUI.hwnd,"Edit Recents")
     g4.OnEvent("close",g4_close)
     g4.OnEvent("escape",g4_escape)
     
@@ -13,7 +13,7 @@ recents_gui() {
     
     g4.Show()
     
-    WinSetEnabled False, Settings["gui"].hwnd
+    WinSetEnabled False, app.mainGUI.hwnd
 }
 
 gui_events4(ctl,info) {
@@ -23,14 +23,14 @@ gui_events4(ctl,info) {
             txt := ctl.gui["RecentsList"].Text
             ctl.gui["RecentsList"].Delete(row)
             Settings["Recents"].Delete(txt)
-            Settings["gui"].Menubar := load_menubar()
+            app.mainGUI.Menubar := load_menubar()
         }
     }
 }
 
 g4_close(g4) {
     Global Settings
-    g := Settings["gui"]
+    g := app.mainGUI
     WinActivate "ahk_id " g.hwnd
     WinSetEnabled True, g.hwnd
     g["NameFilter"].Focus()

@@ -120,7 +120,7 @@ class progress2 {
     rangeStart := 0, rangeEnd := 100
     fontFace := "Verdana", fontSize := 8, mainTextSize := 10
     mainTextAlign := "left", subTextAlign := "left"
-    mainText := " ", subText := " ", title := "", start := 0, modal := false, parent := 0, width := 300
+    mainText := " ", subText := " ", _title := "", start := 0, modal := false, parent := 0, width := 300
     x := "", y := "", mainTextHwnd := 0, subTextHwnd := 0, AlwaysOnTop := 0
     
 	__New(rangeStart := 0, rangeEnd := 100, sOptions := "") {
@@ -129,6 +129,11 @@ class progress2 {
 		optArr := StrSplit(sOptions,Chr(44))
         Loop optArr.Length {
             valArr := StrSplit(optArr[A_Index],":")
+            v := valArr[1]
+            
+            if RegExMatch(v,"i)^(title)$")
+                valArr[1] := "_" valArr[1]
+            
             this.%valArr[1]% := valArr[2]
         }
         
@@ -136,10 +141,11 @@ class progress2 {
 	}
 	ShowProgress() {
         x := "", y := ""
-		showTitle := this.title ? "" : " -Caption +0x40000" ; 0x40000 = thick border
+		showTitle := this._title ? "" : " -Caption +0x40000" ; 0x40000 = thick border
 		range := this.rangeStart "-" this.rangeEnd
         
-		progress2_gui := Gui((this.AlwaysOnTop ? "AlwaysOnTop " : "") "-SysMenu " showTitle,this.title)
+        _styles := (this.AlwaysOnTop ? "AlwaysOnTop " : "") "-SysMenu " showTitle " +E0x02000000 +0x02000000"
+		progress2_gui := Gui(_styles,this._title)
 		
 		progress2_gui.SetFont("s" this.mainTextSize,this.fontFace)
 		align := this.mainTextAlign
@@ -183,14 +189,25 @@ class progress2 {
 			this.gui["SubText"].Text := subText
         If (range)
             this.gui["ProgBar"].Opt("Range" range)
-        If (title)
-            this.gui["ProgBar"].Title := title
-	}
+        If (title) {
+            dbg("changing friggin title")
+            this.gui.Title := title
+        }
+    }
     Range(range := "0-100") {
         this.gui["ProgBar"].Opt("Range" range)
     }
-    SetTitle(newTitle := "") {
-        this.gui["ProgBar"].Title := newTitle
+    Title {
+        set {
+            If this.HasProp("gui")
+                this.gui.Title := value
+            Else this._title := value
+        }
+        get {
+            If this.HasProp("gui")
+                return this.gui.Title
+            else return this._title
+        }
     }
 	Close() {
 		If (IsObject(this.gui))

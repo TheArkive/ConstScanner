@@ -850,7 +850,6 @@ class cli {
         this.batchCmd := obj.batch
         this.cmdHistory .= (this.cmdHistory?"`r`n":"") obj.first
         
-        dbg("   c.write(): " obj.first " / shell: " this.shell)
         f := FileOpen(this.hStdIn, "h", this.codepage), f.Write(obj.first "`r`n"), f.close(), f := "" ; send cmd
         
         If (this.use_check_shell && !this.m) ; check shell

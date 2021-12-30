@@ -1,11 +1,11 @@
 default_includes_gui() {
     Global Settings
-    g := Settings["gui"]
-    If !Settings["ApiPath"] {
+    g := app.mainGUI
+    If !app.ApiPath {
         Msgbox "Select C++ source first."
         return
     }
-    root := StrReplace(Settings["ApiPath"],"\","|")
+    root := StrReplace(app.ApiPath,"\","|")
     default_includes := Settings["baseFiles"].Has(root) ? Settings["baseFiles"][root] : []
     
     For incl in default_includes
@@ -26,7 +26,7 @@ default_includes_gui() {
 
 gui_events5(ctl,info) {
     Global Settings
-    g := Settings["gui"]
+    g := app.mainGUI
     recents_list := []
     For rec in Settings["baseFiles"]
         recents_list.Push(rec)
@@ -44,7 +44,7 @@ gui_events5(ctl,info) {
 
 g5_close(g5) {
     Global Settings
-    g := Settings["gui"]
+    g := app.mainGUI
     WinActivate "ahk_id " g.hwnd
     WinSetEnabled True, g.hwnd
     g["NameFilter"].Focus()

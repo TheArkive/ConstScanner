@@ -33,7 +33,7 @@ load_gui() {
     ctl.OnEvent("click",gui_events)
     ctl.SetFont("s8","Verdana")
     
-    ctl := g.Add("Button","x+5 hp w65 vIncludes","Includes")
+    ctl := g.Add("Button","x+5 hp w65 vTypes","Types")
     ctl.OnEvent("click",gui_events)
     ctl.SetFont("s8","Verdana")
     
@@ -45,7 +45,7 @@ load_gui() {
     
     Loop Settings["ColWidths"].Length
         ctl.ModifyCol(A_Index, Settings["ColWidths"][A_Index])
-    ; ctl.ModifyCol(1,435), ctl.ModifyCol(2,190), ctl.ModifyCol(3,135), ctl.ModifyCol(4,200), ctl.ModifyCol(5,30), ctl.ModifyCol(6,30)
+
     ctl.OnEvent("click",gui_events)
     ctl.OnEvent("doubleclick",details_display)
     
@@ -98,21 +98,58 @@ load_gui() {
     Else
         ctl.Text := "Please Wait ..."
     
-    If !Settings["MinMax"]
-        g.Show("w" Settings["WH"][1] " h" Settings["WH"][2])
-    Else If Settings["MinMax"] = 1
-        g.Show("Maximize")
-    Else If Settings["MinMax"] = -1
-        g.Show("Minimize")
         
     g["NameFilter"].Focus()
     
     g[Settings["CompilerType"]].Value := 1
     
+    MinMax := Settings["MinMax"]
+    w := Settings["WH"][1]
+    h := Settings["WH"][2]
+    
+    g.Show()
+
+    WinWait g.hwnd
+    g.GetPos(&x,&y)
+    
+    ; dbg("wtf minmax: " MinMax)
+    
+    If !MinMax {
+        ; dbg("restore ...")
+        ; g.Show("w" w " h" h)
+        WinMove x, y, Settings["WH"][1], Settings["WH"][2], g.hwnd
+    } Else If MinMax = 1 {
+        ; dbg("maximize ...")
+        ; g.Show("Maximize")
+        WinMaximize g.hwnd
+    } Else If MinMax = -1 {
+        ; dbg("minimize ...")
+        ; g.Show("Minimize")
+        WinMinimize g.hwnd
+    }
+    
     return g
 }
 
+delay_MinMax(g, MinMax) {
+    Global Settings
+    g.GetPos(&x,&y)
+    
+    WinWait g.hwnd
+    
+    ; dbg("wtf minmax: " MinMax)
+    
+    If !MinMax
+        WinMove x, y, Settings["WH"][1], Settings["WH"][2], g.hwnd
+    Else If MinMax = 1 {
+        WinMaximize g.hwnd
+    } Else If MinMax = -1
+        WinMinimize g.hwnd
+}
+
 size_gui(o, MinMax, gW, gH) {
+    ; dbg("MinMax: " minMax " / w: " gW " / h: " gH)
+    
     Global Settings
     Settings["MinMax"] := MinMax
     Settings["WH"] := []
@@ -134,17 +171,11 @@ size_gui(o, MinMax, gW, gH) {
 close_gui(*) {
     Global Settings
     
-    LV := Settings["gui"]["ConstList"]
+    LV := app.mainGUI["ConstList"]
     Settings["ColWidths"] := []
     Loop 6
         Settings["ColWidths"].Push(LV.GetColWidth(A_Index))
     
-    Settings["ApiPath"] := "" ; these values are meant to be temporary, but need to be accessed globally
-    Settings["BaseSearchDir"] := ""
-    Settings["DefaultIncludes"] := Map()
-    Settings["recent_handle"] := 0
-    Settings.Has("temp_gui") ? Settings.Delete("temp_gui") : ""
-    Settings.Delete("gui")
     (Settings.Has("BoundFunc")) ? Settings.Delete("BoundFunc") : ""
     
     sText := jxon_dump(Settings,4)
@@ -155,35 +186,56 @@ close_gui(*) {
 }
 
 gui_context(ctl, Item, rc, X, Y) {
+    Global Settings
+    
     m := Menu()
     m.Add("&Copy Selected Constants (group)",ListView_MenuEvent)
     m.Add("Copy Selected Constant Details (single - &Focused)",ListView_MenuEvent)
+    
+    If (app.ApiPath && Settings["Recents"].Has(app.ApiPath)) {
+        m.Add()
+        m.Add("&Go To #Include",ListView_MenuEvent)
+    }
+    
     m.Show()
 }
 
 ListView_MenuEvent(ItemName, ItemPos, Menu) {
+    Global Settings, const_list
+    
     If (ItemName = "&Copy Selected Constants (group)")
         copy_const_group()
     Else If (ItemName = "Copy Selected Constant Details (single - &Focused)")
         copy_const_details()
+    Else If (ItemName = "&Go To #Include") {
+        LV := app.mainGUI["ConstList"]
+        baseFolder := Settings["Recents"][app.ApiPath]["BaseFolder"][1]
+        
+        obj := const_list[LV.GetText(LV.GetNext())]
+        _file := baseFolder "\" obj["file"]
+        
+        If Settings["TextEditorLine"]
+            Run StrReplace(Settings["TextEditorLine"]," -n#"," -n" obj["line"]) ' "' _file '"'
+    }
 }
 
 gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
     Global Settings, const_list
     n := ctl.Name
-    ; g := Settings["gui"]
     g := ctl.gui
     
-    If (n = "Includes") {
+    If (n = "Types") {
         incl_report()
+        
     } Else If (n = "MoreFilters") {
         load_filters()
-    } Else If (n="integer" Or n="float" Or n="string" Or n="unknown" Or n="other" Or n="expr" Or n="dupe" Or n="crit" Or n="struct" Or n="enum") {
-        Settings["Check" n] := ctl.Value
+        
     } Else If (n = "NameBW") {
         g["NameFilter"].Focus()
+        
     } Else If (n = "ValueEQ") {
         g["ValueFilter"].Focus()
+        
     } Else If (n = "Reset") {
         g["NameFilter"].Value := ""
         g["ValueFilter"].Value := ""
@@ -200,37 +252,52 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
         Settings["CheckFloat"] := 1
         Settings["CheckString"] := 1
         Settings["CheckStruct"] := 1
+        Settings["CheckUUID"] := 1
+        ; Settings["CheckMIDL"] := 1
         Settings["CheckEnum"] := 1
+        Settings["CheckMacro"] := 1
+        ; Settings["CheckType"] := 1
         Settings["CheckUnknown"] := 1
         Settings["CheckOther"] := 1
-        Settings["CheckExpr"] := 1
+        ; Settings["CheckExpr"] := 1
         Settings["CheckDupe"] := 1
-        Settings["CheckOther"] := 1
         Settings["CheckCrit"] := 1
         
         Settings["doReset"] := true
         relist_const()
+        
     } Else If (n = "ConstList") {
         If (!info)
             return
         
-        constName := ctl.GetText(info)
-        constValue := StrReplace(StrReplace(const_list[constName]["value"],"\r","`r"),"\n","`n")
-        constType := const_list[constName]["type"]
-        constExp := const_list[constName]["exp"]
-        constLine := const_list[constName]["line"]
-        constFile := const_list[constName]["file"]
-        dupes := const_list[constName].Has("dupe")
-        critDep := const_list[constName].Has("critical")
+        constName  := ctl.GetText(info)
+        constValue := const_list[constName]["value"]
+        constType  := const_list[constName]["type"]
+        constExp   := const_list[constName]["exp"]
+        constLine  := const_list[constName]["line"]
+        constFile  := const_list[constName]["file"]
         
-        If (constType = "Struct" Or constType = "Enum") {
+        While const_list.Has(constValue)
+            constValue := const_list[constValue]["value"]
+        
+        (!const_list[constName].Has("dupe")) ? const_list[constName]["dupe"] := [] : "" ; for compatibility with older lists
+        (!const_list[constName].Has("critical")) ? const_list[constName]["critical"] := Map() : ""
+        
+        dupes := const_list[constName]["dupe"].Length
+        critDep := const_list[constName]["critical"].Count
+        
+        If (constType = "Enum" || constType = "Struct") {
+            entity_view_exp := (InStr(constExp,"`n") ? "`r`n`r`n" : "") . constExp "`r`n" . (InStr(constExp,"`n") ? "`r`n`r`n" : "")
             g["Details"].Value := (dupes ? "Duplicate Values Exist`r`n`r`n" : "")
-                                . StrReplace(constValue,"\t"," ") "`r`n"
-                                . "`r`nType:  " constType "    /    File:  " constFile "    /    Line:  " constLine
+                                . constValue "`r`n`r`n"
+                                . ((constExp != constValue) ? ("Expr: " entity_view_exp) : "")
+                                . "Type:  " constType "    /    File:  " constFile "    /    Line:  " constLine
         } Else {
             g["Details"].Value := (dupes ? "Duplicate Values Exist`r`n`r`n" : "")
-                                . constName " := " constValue . (IsInteger(constValue) ? "    (" Format("0x{:X}",constValue) ")`r`n" : "`r`n")
-                                . "`r`nValue: " constValue "`r`nExpr:  " constExp "`r`nType:  " constType "    /    File:  " constFile "    /    Line:  " constLine
+                                . constName " := " constValue . (IsInteger(constValue) ? "    (" Format("0x{:X}",constValue) ")`r`n" : "`r`n") "`r`n"
+                                . "Value: " constValue "`r`n"
+                                . "Expr:  " constExp "`r`n"
+                                . "Type:  " constType "    /    File:  " constFile "    /    Line:  " constLine
         }
         
         g["Duplicates"].Value := ""
@@ -239,7 +306,9 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
             For i, obj in dupeArr {
                 dValue := obj["value"], dExp := obj["exp"]
                 dLine := obj["line"], dFile := obj["file"]
-                sLine := "Value: " dValue "`r`nExpr:  " dExp "`r`nFile:  " dFile "    /    Line: " dLine "`r`n`r`n"
+                sLine := "Value: " dValue "`r`n"
+                       . "Expr:  " dExp "`r`n"
+                       . "File:  " dFile "    /    Line: " dLine "`r`n`r`n"
                 
                 dupeStr .= sLine
             }
@@ -248,30 +317,38 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
         }
         
         g["CritDep"].Value := ""
-        If (critDep) { ; item := Map("exp",constExp,"comment",comment,"file",file,"line",i,"value",vConst.value,"type",vConst.type)
+        If (critDep) {
             crit := const_list[constName]["critical"], critList := "Entries: " crit.Count "`r`n`r`n"
             For const, o in crit {
                 critList .= const " / Type: " o["type"] " / Value: " o["value"] " / Dupes: Yes`r`n`r`n"
             }
             g["CritDep"].Value := Trim(critList,"`r`n")
         }
+        
     } Else If (n = "NameFilterClear") {
         g["NameFilter"].Value := ""
         g["NameBW"].Value := 0
         g["NameFilter"].Focus()
+        
     } Else If (n = "ValueFilterClear") {
         g["ValueFilter"].Value := ""
         g["ValueEQ"].Value := 0
         g["ValueFilter"].Focus()
+        
     } Else If (n = "ExpFilterClear") {
         g["ExpFilter"].Value := ""
         g["ExpFilter"].Focus()
+        
     } Else If (n = "FileFilterClear") {
         ctl.gui["FileFilter"].Text := ""
+        Settings["FileFilter"] := ""
+        
     } Else If (n = "FileFilter") {
         Settings["FileFilter"] := ctl.gui["FileFilter"].Text
+        
     } Else If (n = "AutoLoad") {
         Settings["AutoLoad"] := ctl.Value
+        
     } Else If (n = "RemBaseFile") {
         curFile := g["ApiPath"].Text
         curBase := Settings["baseFiles"], newList := []
@@ -283,25 +360,29 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
         g["ApiPath"].Add(newList)
         Settings["baseFiles"] := newList
         g["ApiPath"].Text := curFile
+        
     } Else If (n="x64_MSVC_Sel" Or n="x86_MSVC_Sel" Or n="x64_GCC_Sel" Or n="x86_GCC_Sel")
         Settings["CompilerType"] := n
+        
     Else If (n="x64_MSVC") Or (n="x86_MSVC") Or (n="x64_GCC") Or (n="x86_GCC")
         Settings[n] := ctl.Value
+        
     Else If (n="Search")
         relist_const()
+        
     Else If (n="DisableTooltips")
         Settings["DisableTooltips"] := ctl.Value
 }
 
 recents_menu() {
     Global Settings
-    mb_recent := menu(), Settings["recent_handle"] := mb_recent.handle
+    mb_recent := menu(), app.recent_handle := mb_recent.handle
     mb_recent.Add("Clear &Recents",menu_events)
     mb_recent.Add("&Edit Recents",menu_events)
     mb_recent.Add()
     For file_name in Settings["Recents"] {
         mb_recent.Add(file_name,menu_events)
-        If (file_name = Settings["ApiPath"])
+        If (file_name = app.ApiPath)
             mb_recent.Check(file_name)
     }
     
@@ -310,30 +391,36 @@ recents_menu() {
 
 load_menubar() {
     Global Settings
-    mb_source := menu()
-    mb_source.Add("Source &File",menu_events) ; "Source" > "Select C++ Source" submenu
-    mb_source.Add("Source &Directory",menu_events)
-    mb_source.Add("&Create Collection",menu_events)
+    ; mb_source := menu()
+    ; mb_source.Add("Source &File",menu_events) ; "Source" > "Select C++ Source" submenu
+    ; mb_source.Add("Source &Directory",menu_events)
+    ; mb_source.Add("&Create Collection",menu_events)
     
-    mb_scan := menu()                       ; "Source" > "Scanning" submenu
-    mb_scan.Add("&Scan Now",menu_events)
-    mb_scan.Add()
-    mb_scan.Add("Select Scan Type:",menu_events)
-    mb_scan.Disable("Select Scan Type:")
-    mb_scan.Add("C&ollect",menu_events,"+Radio")
-    mb_scan.Add("&Includes Only",menu_events,"+Radio")
-    mb_scan.Check(Settings["ScanType"])
+    ; mb_scan := menu()                       ; "Source" > "Scanning" submenu
+    ; mb_scan.Add("&Scan Now",menu_events)
+    ; mb_scan.Add()
+    ; mb_scan.Add("Select Scan Type:",menu_events)
+    ; mb_scan.Disable("Select Scan Type:")
+    ; mb_scan.Add("C&ollect",menu_events,"+Radio")
+    ; mb_scan.Add("&Includes Only",menu_events,"+Radio")
+    ; mb_scan.Check(Settings["ScanType"])
     
     mb_src := menu()                        ; "Source" root menu
     mb_src.Add("&New Profile",menu_events)
     mb_src.Add("&Load Recent", recents_menu())
     mb_src.Add("&Edit Profile",menu_events)
     mb_src.Add()
-    mb_src.Add("S&canning", mb_scan)
+    mb_src.Add("&Global Settings",menu_events)
+    mb_src.Add()
+    ; mb_src.Add("S&canning", mb_scan)
+    mb_src.Add("&Scan Now",menu_events)
     
     mb_data := menu()                       ; "Data" root menu
     mb_data.Add("&Load constants",menu_events)
     mb_data.Add("&Save constants",menu_events)
+    mb_data.Add()
+    mb_data.Add("&Overwrite Automatically",menu_events)
+    Settings["OverwriteSave"] ? mb_data.Check("&Overwrite Automatically") : ""
     
     mb_copy := menu()                       ; "List" root menu
     mb_copy.Add("Copy &selected constant details (single - CTRL+SHIFT+D)",menu_events)
@@ -357,44 +444,71 @@ load_menubar() {
         mb_copy.Check("&Prepend comment char on copy")
     
     mb_compile := menu()                    ; "Compile" root menu
-    mb_compile.Add("&Uncheck all constants",menu_events)
-    mb_compile.Add("&Add #INCLUDES for checked constants",menu_events)
+    mb_compile.Add("&Uncheck all constants (CTRL + SHIFT + U)",menu_events)
+    mb_compile.Add("&Only Add #INCLUDES for checked constants",menu_events) ; Add #INCLUDES for checked constants
     mb_compile.Add()
-    mb_compile.Add("&Compile and test checked constants",menu_events)
+    mb_compile.Add("&Compile and test checked constants (CTRL + SHIFT + C)",menu_events)
     If Settings["AddIncludes"]
-        mb_compile.Check("&Add #INCLUDES for checked constants")
+        mb_compile.Check("&Only Add #INCLUDES for checked constants")
+    
+    If app.ApiPath
+      && Settings.Has("Recents")
+      && Settings["Recents"].Has(app.ApiPath) { ; only attempt this if profile is saved
+      
+        mb_files := menu()
+        prof := Settings["Recents"][app.ApiPath]
+        prof_base := prof["BaseFolder"][1] ; root folder
+        prof_files := prof["OtherDirList"]
+        
+        for i, _file in prof_files
+            mb_files.Add("-> " _file[3], menu_events)
+        
+        If prof_files.Length {
+            mb_files.Add()
+            mb_Files.Add("-> All", menu_events)
+        }
+    }
+    
+    mb_settings := Menu()
+    mb_settings.Add("Set &Text Editor: " Settings["TextEditor"], menu_events)
+    mb_settings.Add("Set &Go-To Line command: " Settings["TextEditorLine"], menu_events)
     
     mb := Menubar()
     mb.Add("&Source", mb_src)
     mb.Add("&Data", mb_data)
     mb.Add("&List", mb_copy)
-    mb.Add("&Compile",mb_compile)
+    mb.Add("&Compile", mb_compile)
+    
+    If app.ApiPath
+        mb.Add("&Includes", mb_files)
+    
+    mb.Add("S&ettings", mb_settings)
     
     return mb
 }
 
 menu_events(ItemName, ItemPos, _o) {
-    Global Settings
-    n := ItemName, g := Settings["gui"]
+    Global Settings, const_list
+    n := ItemName, g := app.mainGUI
     
     
     
     If (n = "&New Profile") {
         const_list := "", IncludesList := ""
-        Settings["gui"]["ConstList"].Delete()
-        Settings["gui"].Title := "C++ Constants Scanner"
-        Settings["ApiPath"] := ""
+        app.mainGUI["ConstList"].Delete()
+        app.mainGUI.Title := "C++ Constants Scanner"
+        app.ApiPath := ""
         extra_dirs()
     } Else If (n="&Edit Recents") {
         recents_gui()
     } Else If (n = "Clear &Recents") {
         Settings["baseFiles"] := Map()
         Settings["dirs"] := Map()
-        Settings["gui"].Menubar := load_menubar()
-    } Else If (_o.Handle = Settings["recent_handle"] And Settings["Recents"].Has(n)) { ; selecting a recent profile
-        Settings["ApiPath"] := Settings["Recents"][n]["Name"]
-        Settings["gui"].Title := "C++ Constants Scanner - " Settings["Recents"][n]["Name"]
-        Settings["gui"].Menubar := load_menubar()
+        app.mainGUI.Menubar := load_menubar()
+    } Else If (_o.Handle = app.recent_handle And Settings["Recents"].Has(n)) { ; selecting a recent profile
+        app.ApiPath := Settings["Recents"][n]["Name"]
+        app.mainGUI.Title := "C++ Constants Scanner - " Settings["Recents"][n]["Name"]
+        app.mainGUI.Menubar := load_menubar()
     } Else If (n = "C&ollect") Or (n = "&Includes Only") {
         Static scan_type := ["C&ollect","&Includes Only"] ; ,"x64 &MSVC","x86 M&SVC","x64 &GCC","x86 G&CC"]
         For typ in scan_type
@@ -402,9 +516,11 @@ menu_events(ItemName, ItemPos, _o) {
         _o.Check(n)
         Settings["ScanType"] := n
     } Else If (n = "&Edit Profile") {
-        If Settings["ApiPath"] {
+        If app.ApiPath {
             extra_dirs()
-        } Else MsgBox("Load/Create a profile first.")
+        } Else MsgBox("Load/Create a profile first.",,"Owner" app.mainGUI.hwnd)
+    } Else if (n = "&Global Settings") {
+        global_settings_gui()
     } Else If (n = "&Scan Now") {
         scan_now()
         
@@ -414,6 +530,10 @@ menu_events(ItemName, ItemPos, _o) {
         LoadFile()
     } Else If (n = "&Save Constants") {
         SaveFile()
+    } Else if (n = "&Overwrite Automatically") {
+        Settings["OverwriteSave"] := !Settings["OverwriteSave"]
+        app.MainGUI.Menubar := load_menubar()
+    
         
         
         
@@ -442,64 +562,107 @@ menu_events(ItemName, ItemPos, _o) {
             Settings["ViewBase"] := "Decimal"
         _o.Uncheck("View values as &Hex"), _o.Uncheck("View values as &Decimal")
         _o.Check(n)
-        HexDecToggle()
-    } Else If (n="&Uncheck all constants") {
+        HexDecToggle(StrReplace(n,"View values as &",""))
+    } Else If (n="&Uncheck all constants (CTRL + SHIFT + U)") {
         g["ConstList"].Modify(0,"-Check")
-    } Else If (n="&Add #INCLUDES for checked constants") {
+    } Else If (n="&Only Add #INCLUDES for checked constants") {
         Settings["AddIncludes"] := !Settings["AddIncludes"]
         _o.ToggleCheck(n)
-    } Else if (n="&Compile and test checked constants") {
-        If !Settings["ApiPath"] {
-            Msgbox "Load or Create a profile first."
+    } Else if (n="&Compile and test checked constants (CTRL + SHIFT + C)") {
+        compile_constants()
+    
+    
+    
+    } Else if (n = "-> All") {
+        _files := Settings["Recents"][app.ApiPath]["OtherDirList"]
+        For i, _file in _files
+            Run '"' Settings["TextEditor"] '" "' _file[3] '"'
+    
+    } Else If (InStr(n,"->") = 1) {
+        _file := RegExReplace(n,"^\-> ","")
+        Run Settings["TextEditor"] ' "' _file '"'
+    
+    } Else If (InStr(n,"Set &Text Editor:") = 1) {
+        obj := InputBox("Enter command line for Text Editor:","Text Editor Command Line",,Settings["TextEditor"])
+        If (obj.result != "OK")
+            return 
+        Settings["TextEditor"] := obj.value
+        app.mainGUI.menubar := load_menubar()
+    } Else if (InStr(n,"Set &Go-To Line command") = 1) {
+        obj := InputBox("Enter command line for Go To Line:","Go To Line Command",,Settings["TextEditorLine"])
+        If (obj.result != "OK")
             return
-        }
+        Settings["TextEditorLine"] := obj.value
+        app.mainGUI.menubar := load_menubar()
+    }
+}
+
+compile_constants() {
+    Global Settings
+    
+    If !app.ApiPath {
+        Msgbox("Load or Create a profile first.",,"Owner" app.mainGUI.hwnd)
+        return
+    }
+    
+    If !(create_cpp_file()) {
+        Msgbox "No valid constants selected.`n`n"
+             . "Currntly supported types:`n`n"
+             . "Integer, Float, String, Struct`n`n"
+             . "Struct returns sizeof(struct_name)."
+        Return
+    }
+    RegExMatch(ct := Settings["CompilerType"],"^(x86|x64)_(MSVC|GCC)",&m)
+    
+    If (IsObject(m) And m.Count = 2) {
+        If (m[2] = "MSVC")
+            error_check := CliData(Settings[StrReplace(ct,"_Sel","")] " & cl /EHsc test_const.cpp")
+        Else If (m[2] = "GCC")
+            error_check := CliData(Settings[StrReplace(ct,"_Sel","")] " & g++ -static -o test_const.exe test_const.cpp")
         
-        create_cpp_file()
-        RegExMatch(Settings["CompilerType"],"^(x86|x64)_(MSVC|GCC)",&m)
-        
-        If (IsObject(m) And m.Count = 2) {
-            If (m[2] = "MSVC")
-                error_check := CliData("vcvars " m[1] " & cl /EHsc test_const.cpp")
-            Else If (m[2] = "GCC")
-                error_check := CliData("msystem mingw" StrReplace(m[1],"x","") " & g++ -o test_const.exe test_const.cpp")
+        If FileExist("test_const.exe") {
+            r := CliData("test_const.exe"), final := ""
             
-            If FileExist("test_const.exe") {
-                r := CliData("test_const.exe"), final := ""
+            Loop Parse r, "`n", "`r"
+            {
+                var := Trim(SubStr(A_LoopField,1,e:=InStr(A_LoopField,"=")-1))
+                val := Trim(SubStr(A_LoopField,e+2))
+                val_chk := const_list[var]["value"]
                 
-                Loop Parse r, "`n", "`r"
-                {
-                    var := Trim(SubStr(A_LoopField,1,e:=InStr(A_LoopField,"=")-1))
-                    val := Trim(SubStr(A_LoopField,e+2))
-                    
-                    If RegExMatch(val,"^[A-Fa-f0-9]+$") And RegExMatch(val,"[A-Fa-f]+")
-                        val := Integer("0x" val)
-                    
-                    If (val >= -2147483648 And val <= 4294967295) {
-                        final .= var " = " val " / " Format("0x{:08X}",val) "`r`n"    ; 32-bit
-                    } Else {
-                        final .= var " = " val " / " Format("0x{:016X}",val) "`r`n"   ; 64-bit
-                    }
+                If RegExMatch(val,"^[A-Fa-f0-9]+$") And RegExMatch(val,"[A-Fa-f]+")
+                    val := Integer("0x" val)
+                
+                If (const_list[var]["type"]="Struct")
+                    val := "size: " val " bytes"
+                Else {
+                    _chk := (val=val_chk) ? "  ( Good! )" : "  ( Wrong! )"
+                    If (val >= -2147483648 And val <= 4294967295)
+                        val := val " / " Format("0x{:08X}",val) _chk
+                     Else
+                        val := val " / " Format("0x{:016X}",val) _chk
                 }
                 
-                result_gui(Trim(final,"`r`n"))
-            } Else
-                result_gui( "The file did not compile.`r`n`r`n===================================`r`n`r`n" error_check )
-        }
+                final .= var " = " val "`r`n"
+            }
+            
+            result_gui(Trim(final,"`r`n"))
+        } Else
+            result_gui( "The file did not compile.`r`n`r`n===================================`r`n`r`n" error_check )
     }
 }
 
 scan_now() {
-    Global Settings
-    If !Settings["ApiPath"] {
-        Msgbox "Select a C++ Source Header file first."
+    Global Settings, abort_parser, prog
+    If !app.ApiPath {
+        Msgbox("Select a C++ Source Header file first.",,"Owner" app.mainGUI.hwnd)
         return
     }
     
-    res := MsgBox("Start scan now?`r`n`r`nThis will destroy the current list and scan the specified C++ Source Header and includes.","Confirm Scan",4)
+    res := MsgBox("Start scan now?`r`n`r`nThis will destroy the current list and scan the specified C++ Source Header and includes.","Confirm Scan","4 Owner" app.mainGUI.hwnd)
     If (res = "no")
         return
     
-    g := Settings["gui"]
+    g := app.mainGUI
     g["NameFilter"].Value := ""
     g["NameBW"].Value := 0
     g["ValueFilter"].Value := ""
@@ -518,16 +681,20 @@ scan_now() {
     g["Total"].Text := "Scanning header files..."
     
     ScanType := StrReplace(Settings["ScanType"],"&","")
+    abort_parser := false
     
     If (ScanType = "Collect")
         header_parser()
-    Else If (ScanType = "Includes Only")
-        includes_report()
+    ; Else If (ScanType = "Includes Only")
+        ; includes_report()
     Else if InStr(ScanType,"x86") Or InStr(ScanType,"x64")
         header_parser()
     
-    relist_const()
+    (!abort_parser) ? relist_const() : (prog := "")
+    
     UnlockGui(true)
+    
+    app.mainGUI.menubar := load_menubar()
     
     g.Flash()
 }
@@ -535,19 +702,19 @@ scan_now() {
 copy_const_details() {
     comment := (Settings["var_copy_comment"]) ? "; " : ""
     final := ""
-    Loop Parse Settings["gui"]["Details"].Value, "`n", "`r"
+    Loop Parse app.mainGUI["Details"].Value, "`n", "`r"
         final .= ((A_Index=1)?"":"`r`n") comment A_LoopField
     A_Clipboard := final
 }
 
 copy_const_only() {
     comment := (Settings["var_copy_comment"]) ? "; " : ""
-    If (n := Settings["gui"]["ConstList"].GetNext())
-        A_Clipboard := comment Settings["gui"]["ConstList"].GetText(n)
+    If (n := app.mainGUI["ConstList"].GetNext())
+        A_Clipboard := comment app.mainGUI["ConstList"].GetText(n)
 }
 
 copy_const_group() {
-    list := "", n := 0, g := Settings["gui"]
+    list := "", n := 0, g := app.mainGUI
     comment := (Settings["var_copy_comment"]) ? "; " : ""
     While(n := g["ConstList"].GetNext(n)) {
         If StrReplace(Settings["var_copy"],"&","") = "var only"
@@ -583,9 +750,13 @@ result_close(_gui) {
 ; ==================================================================
 ; ==================================================================
 
-details_display(*) {
+details_display(ctl, row) {
     Global Settings
-    _main := Settings["gui"]
+    
+    if !row
+        return
+    
+    _main := app.mainGUI
     g := Gui("+Resize +Owner" _main.hwnd, "Details Display")
     g.OnEvent("Escape",details_close)
     g.OnEvent("Close",details_close)
@@ -601,26 +772,33 @@ details_display(*) {
     ctl.OnEvent("Click",details_event)
     ctl.value := Settings["MaxDispOpen"]
     
-    Settings["MaxDispOpen"] ? g.Show("Maximize") : g.Show()
+    g.Show()
+    WinWait g.hwnd
+    
+    If Settings["MaxDispOpen"]
+        WinMaximize g.hwnd
     
     WinSetEnabled false, "ahk_id " _main.hwnd
 }
 
 details_event(ctl, info) {
     If (ctl.name = "MaxDispOpen")
-        Settings["MaxDispOpen"] := true
+        Settings["MaxDispOpen"] := ctl.value
 }
 
 details_close(_gui) {
     Global Settings
-    _main := Settings["gui"]
     _gui.Destroy()
     
-    WinSetEnabled true, "ahk_id " _main.hwnd
-    WinActivate "ahk_id " _main.hwnd 
+    WinSetEnabled true, "ahk_id " app.mainGUI.hwnd
+    WinActivate "ahk_id " app.mainGUI.hwnd 
 }
 
 details_size(g, MinMax, w, h) {
+    Global Settings
+    ; If Settings["MaxDispOpen"] && !MinMax
+        ; return
+    
     g["Disp"].Move(,,w-(g.MarginX * 2),h-(g.MarginY * 2)-20)
     g["TxtMsg"].Move(,h-(g.MarginY * 2)-7)
     
