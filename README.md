@@ -9,7 +9,9 @@ Global constant/macro values are generally compiler specific (ie. MSVC or GCC).
 ## Recent Updates
 
 2022/01/03
++ Updated Progress2 lib.
 + Cleaned up some dialogs to be more consistent with the rest of the UI changes.
++ Fixed `sizeof(type *)` to resolve to selected architecture pointer size.
 + Added a *"Global Base Folder"* option for users who just browse `.data` files.\
 This enables the *"Go to #Include"* and *"Include"* menu functionality.
 + The Compile menu is now hidden unless you define your CLI compiler enviornment settings in the Settings tab.
@@ -17,6 +19,9 @@ This enables the *"Go to #Include"* and *"Include"* menu functionality.
 This is mostly used for selectively cleaning up struct indentation.
 + Re-dumped all x64 `.data` files because most were missing some includes (re-download please!).
 + Finised dumping values into `.data` files for the remaining Win32 API references on the [Microsoft site](https://docs.microsoft.com/en-us/windows/win32/api/).
++ Updated readme with better setup instructions and explanation of features.
++ Now multiple `.data` files can be loaded.
++ Multiple loaded `.data` files can be saved to a new `.data` file.
 
 Also, due to recent updates:
 + "Dupes" and "Critical" constants used to be "a thing" in this script.  Now, "Critical" doesn't exist (no data files have "Critical" constants anymore) and the few existing "Dupes" are usually obscure structs, or redeclarations of UUIDs/GUIDs.
