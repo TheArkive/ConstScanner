@@ -62,6 +62,7 @@ extra_dirs() {
     g2.Add("Button","x460 y+20 w75 h24 vOK","OK").OnEvent("click",gui_events2)
     g2.Add("Button","x+0 w75 hp vCancel","Cancel").OnEvent("click",gui_events2)
     
+    g2.old_name := ""
     g2.Show()
     
     app.temp_gui := g2
@@ -309,7 +310,8 @@ gui_events2(ctl,info) {
         prof["MakeGlobalCache"] := g["MakeGlobalCache"].Value
         prof["CompType"] := g["CompType"].Text
         
-        Settings["Recents"].Delete(g.old_name)
+        If (g.old_name)
+            Settings["Recents"].Delete(g.old_name)
         Settings["Recents"][prof["Name"]] := prof
         
         app.ApiPath := prof["Name"]
@@ -368,7 +370,7 @@ gui_events2(ctl,info) {
         file_list := [], rem_list := []
         For i, obj in Settings["MakeProfile"] {
             Loop Parse FileRead(obj[3]), "`n", "`r"
-                If (obj[2]==1 && RegExMatch(A_LoopField,'#include[ \t]+"?<?([\w\.]+)>?"?',&m))
+                If (obj[2]==1 && RegExMatch(A_LoopField,'^[ \t]*#include[ \t]+"?<?([\w\.]+)>?"?',&m))
                     If !dupe_item_check(file_list,m[1])
                         file_list.Push(m[1])
         }

@@ -1,0 +1,366 @@
+﻿<html><head><style>
+:root{
+    --link: #00ACAF;
+    --link-hover: cyan;
+    --link-special: orange;
+    --link-visited: #006bcf;
+    --text: #999;
+    --header: #00ACAF;
+    --border: #00ACAF;
+    --blockquote: #0000FF;
+    --blockquote-text: #DDD;
+    --row-HL: #000C67;
+    --bg: #000C17;
+    --bg1-5: #000C27;
+    --bg2: #000C37;
+    --bg3: #000C57;
+    --so1: yellow;
+    --so2: orange;
+    --so3: red;
+    --so4: magenta;
+    --emphasis: #EEE; /* was #0077CC */
+}
+
+html, body {
+    background-color: var(--bg);
+    /* font-family: Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji; */
+    font-family: Segoe UI;
+    font-size: 16px;
+    font-weight: 400;
+}
+
+body {
+    color: var(--text);
+    line-height: 1.6em;
+}
+
+#body-container {
+    width: 100%;
+    height: 100%;
+}
+
+#main {
+    max-width: 1280px;
+    margin: auto;
+    height: 90%;
+    padding: 45px 45px;
+    overflow-y: scroll;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+}
+
+#toc-container {
+    background-color: var(--bg);
+    overflow: hidden;
+    position: fixed;
+    display: block;
+    float: right;
+    right: 30px;
+    top: 0px;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 10px;
+    transition-duration: 0.25s;
+}
+
+@media screen and (min-width: 1383px) {
+    #toc-container { right: calc(50% - 640px - 25px); }
+}
+
+#toc-icon {
+    font-size: 24px;
+    padding-right: 5px;
+    color: var(--link);
+}
+
+#toc-contents {
+    overflow: hidden;
+    display: none;
+}
+
+.toc-item {
+    padding: 2px 15px;
+}
+
+#toc-container:hover {
+    overflow-y: auto;
+    width: 25px;
+    /* height: initial; */
+    height: 0px;
+    max-height: calc(100vh - 40px);
+    transition-duration: 0.25s;
+}
+
+#toc-container:hover #toc-contents {
+    display: block;
+}
+
+#toc-container:hover a {
+    text-decoration: none;
+}
+
+#toc-container:hover .toc-item:hover {
+    background-color: var(--row-HL);
+    color: cyan;
+}
+
+:target a:visited { color: var(--so4); }
+:target a:visited:hover, :target a:visited:hover .link { color: var(--link-hover); }
+:target.underline { border-color: var(--so4); }
+
+img { opacity: 0.5; }
+
+table.normal tr th { background: var(--bg3); color: var(--header); }
+table.normal tr td { background: var(--bg2); }
+table.normal tr th, table tr td { padding: 5px; }
+table.normal tr:hover td { background: var(--row-HL); }
+
+a, a:link { color: var(--link); }
+a:hover { color: var(--link-hover); text-decoration: underline; }
+a:visited { color: var(--link); }
+
+h1, h2, h3, h4, h5, h6
+{ font-weight:bold; color:var(--header); margin-top: 24px; margin-bottom: 16px; }
+
+h1 a, h2 a, h3 a, h4 a, h5 a, h6 a,
+h1:hover a, h2:hover a, h3:hover a, h4:hover a, h5:hover a, h6:hover a
+{ text-decoration: none; }
+
+h1 a .link, h2 a .link, h3 a .link, h4 a .link, h5 a .link, h6 a .link
+{ position: relative; float: left; margin-left: -20px; display: none; }
+
+h1:hover, h2:hover, h3:hover, h4:hover, h5:hover, h6:hover
+{ border-color: var(--link-hover); color: var(--link-hover); }
+
+h1:hover a .link, h2:hover a .link, h3:hover a .link, h4:hover a .link, h5:hover a .link, h6:hover a .link
+{ display: inline; }
+
+.underline { border-bottom: 1px solid #00ACAF; }
+h1.underline { padding-bottom: 10px; }
+h2.underline { padding-bottom: 8px; }
+h3.underline { padding-bottom: 6px; }
+h4.underline { padding-bottom: 4px; }
+h5.underline { padding-bottom: 2px; }
+h1 { font-size:1.75em; }
+h2 { font-size:1.5em; }
+h3 { font-size:1.30em; }
+h4 { font-size:1.15em; }
+h5 { font-size:1em; }
+h6 { font-size:0.75em; }
+
+em, strong { color: var(--emphasis); }
+del { font-weight: 400; }
+hr {
+    color: transparent;
+    border-top-style: solid;
+    border-top-width: 1px;
+    border-top-color: var(--border);
+}
+
+blockquote {
+    border-left: 4px solid var(--blockquote);
+    padding: 0 15px;
+    color: var(--blockquote-text);
+    margin-top: 0px;
+    margin-bottom: 16px;
+}
+
+p { margin-bottom: 16px; margin-top: 0px; }
+/* ul, ol { margin: 0; padding: 0; } */
+
+pre {
+    margin-top: 10px;
+    margin-bottom: 16px;
+    background-color: var(--b1-5);
+    padding: 2px 4px;
+    border: 1px solid var(--so1);
+    border-radius: 5px;
+    font-family: Consolas;
+    font-size: 16px;
+}
+
+code {
+    margin: 0px 3px 0px 0px;
+    padding: 2px 4px;
+    background-color: var(--b1-5);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-family: Consolas;
+    font-size: 16px;
+    font-weight: 100;
+}
+
+pre code { border:none; padding:0px; }
+
+/* ul { margin: 4px 0; } */
+li { margin: 4px 0; }
+
+.header-menu {
+  position: fixed;
+  background-color: var(--bg2);
+  top: 0px;
+  max-width: 1280px;
+  display: inline-block; 
+}
+.header-menu-cell { border: none; }
+.header-menu-cell {
+  border-right: 1px solid var(--bg);
+  padding: 10px 20px;
+}
+.header-menu-cell:hover {
+  background-color: var(--row-HL);
+}
+.header-menu-cell:hover a,
+.header-menu-cell a 
+{ text-decoration: none; }
+
+.spoiler {
+    color: var(--so2)
+}
+
+summary { margin-bottom: 16px; }
+</style></head>
+
+<body><div id="body-container"><div id="main">
+<h1 id="c++-constants-scanner/database"  class="underline">C++ Constants Scanner/Database<a href="#c++-constants-scanner/database"><span class="link">•</span></a></h1>
+<p>This script is for making the process of exploring API functions easier.</p>
+<p>You can define profiles (groups of headers) and any user-defined constants needed prior to scanning for values.</p>
+<p>Global constant/macro values are generally compiler specific (ie. MSVC or GCC).</p>
+<h2 id="recent-updates"  class="underline">Recent Updates<a href="#recent-updates"><span class="link">•</span></a></h2>
+<p>2022/01/03</p>
+<ul>
+<li>Updated Progress2 lib.</li>
+<li>Cleaned up some dialogs to be more consistent with the rest of the UI changes.</li>
+<li>Fixed <code>sizeof(type *)</code> to resolve to selected architecture pointer size.</li>
+<li>Added a <em>"Global Base Folder"</em> option for users who just browse <code>.data</code> files.<br>This enables the <em>"Go to #Include"</em> and <em>"Include"</em> menu functionality.</li>
+<li>The Compile menu is now hidden unless you define your CLI compiler enviornment settings in the Settings tab.</li>
+<li>Added the ability to edit values.<br>This is mostly used for selectively cleaning up struct indentation.</li>
+<li>Re-dumped all x64 <code>.data</code> files because most were missing some includes (re-download please!).</li>
+<li>Finised dumping values into <code>.data</code> files for the remaining Win32 API references on the <a href="https://docs.microsoft.com/en-us/windows/win32/api/" target="_blank" rel="noopener noreferrer">Microsoft site</a>.</li>
+<li>Updated readme with better setup instructions and explanation of features.</li></ul>
+
+<p>Also, due to recent updates:</p>
+<ul>
+<li>"Dupes" and "Critical" constants used to be "a thing" in this script.  Now, "Critical" doesn't exist (no data files have "Critical" constants anymore) and the few existing "Dupes" are usually obscure structs, or redeclarations of UUIDs/GUIDs.</li>
+<li>The old <code>.data</code> files will not work with this update.  Please download all the <code>.data</code> files (that you use) again.  For now only x64 <code>.data</code> files exist.  I'll dump the x86 ones later.</li></ul>
+
+<h2 id="api--data-files"  class="underline">API .data Files<a href="#api--data-files"><span class="link">•</span></a></h2>
+<p>I have already scanned and posted several Win32 API <code>.data</code> files.</p>
+<p>You can get the <code>.data</code> files here: <a href="https://github.com/TheArkive/ConstScannerDataFiles" target="_blank" rel="noopener noreferrer">ConstScannerDataFiles Repo</a></p>
+<p>I'll post more <code>.data</code> files as I scan more headers.</p>
+<p>Place these files in the <em>data</em> folder within the script directory.</p>
+<p>Load them up from the menubar:  <code>Data &gt; Load Constants</code></p>
+<h2 id="highlights"  class="underline">Highlights<a href="#highlights"><span class="link">•</span></a></h2>
+<ul>
+<li>Inspired by <a href="https://autohotkey.com/board/topic/18177-crazy-scripting-list-of-win32-constants/" target="_blank" rel="noopener noreferrer">Constants.ahk</a> (written by SKAN)</li>
+<li>Scans and catalogs Integers, Floats, Strings, Structs, Enums, Macros, and UUIDs.</li>
+<li>Automatically perform calculations and variable substitutions defined in macros to resolve constant values.</li>
+<li>Set user-defined constants so you can keep your <code>.data</code> files lean with only the constants you want to list in a given API.</li>
+<li>Create profiles of user-defined groups of headers.</li>
+<li>All <code>#preprocessors</code> are now parsed to get a more accurate set of constants.</li>
+<li>Flexible UI for searching and referencing API constants/structs/unions/enums/macros.</li>
+<li>All listed Win32 API groups have been dumped to the <a href="https://github.com/TheArkive/ConstScannerDataFiles" target="_blank" rel="noopener noreferrer">Data File Repo</a>.</li>
+<li>Jump to where a value is defined in headers from the main list (right-click).<br>(Define text editor settings in the Settings menu.)</li>
+<li>Setup this script with a compiler of your choice for checking constants (recommended MSVC BuildTools or GCC variant, like MinGW32/64 or TDGCC).<br>It sometimes doesn't work, this is a work-in-progress.</li>
+<li>Double-click a constant in the list (or press <code>F3</code>) to get a larger display window (handy for browsing large structs and enums).</li>
+<li>Toggle <code>Value</code> column between Hex and Decimal format with <code>CTRL + Space</code>, or from the List menu.</li>
+<li>Each <code>.data</code> file now contains a sub-catalog of data types and their sizes that pertain to that API.</li>
+<li>Drastically reduced number of duplicate constants.</li>
+<li>No more "critical" constants.<br>"Critical" used to mean that a value of a numeric constant was based on one or more duplicate constants.  Now with the proper pre-defined constants, and <code>#preprocessors</code> being processed during scanning, there are no more "Critical" constants, and significantly fewer dupes.</li></ul>
+
+<h2 id="simple-setup"  class="underline">Simple Setup<a href="#simple-setup"><span class="link">•</span></a></h2>
+<p>If you only plan to use this script to load <code>.data</code> files and browse constants, then there is no setup to be done.  Just grab the <code>.data</code> files you want to use from the repo mentioned above, and load them up.</p>
+<p>If you have downloaded the Windows SDK and want to be able to use the UI to open up headers in your preffered text editor AND jump to the line where the value is defined, keep reading below. </p>
+<h3 id="define-text-editor-settings" >Define Text Editor Settings<a href="#define-text-editor-settings"><span class="link">•</span></a></h3>
+<p>From the <em>Settings</em> menu, define the following values.</p>
+<ul>
+<li>Text Editor<br>Example: <code>C:Program FilesNotepad++notepad++.exe</code></li>
+<li>Go-To-Line Command<br>Example: <code>C:Program FilesNotepad++notepad++.exe -n# [file]</code></li></ul>
+
+<p>It is important to note the following elements when defining the <em>"Go-To-Line Command"</em>:</p>
+<ul>
+<li>The <code>#</code> is replaced by the recorded value's line number (stored in the <code>.data</code> file).</li>
+<li>The <code>[file]</code> is replaced by the header file name.</li></ul>
+
+<p>Of course different text editors will likely require different syntax.</p>
+<p>Just make sure to place the <code>#</code> and <code>[file]</code> in the proper syntax for your text editor.</p>
+<p>After you define these settings, and restart the script, then you will see an <em>"Includes"</em> menu, and when you right-click on a value in the main list, you will see a <em>"Go to #Include"</em> entry in the context menu.</p>
+<p>The <em>"Includes"</em> menu shows a list of headers referenced in this API and allows you to open up any one, or all of them in your text editor.</p>
+<p>The <em>"Go to #Include"</em> context menu entry will open the required header file and automatically jump to that line where the value is defined.</p>
+<h2 id="using-the-compiler-settings"  class="underline">Using the compiler settings<a href="#using-the-compiler-settings"><span class="link">•</span></a></h2>
+<p>In general you should have your compiler setup in your system or user <code>%PATH%</code> environment setting.  This will allow the most flexibility when trying to compile very small "programs" in order to just display constant values.</p>
+<p>In the <em>"Settings"</em> tab, you will see the required compiler settings.  Enter the command used to load the compiler environment for each compiler you intend to use.</p>
+<pre><code>Example for MSVC CLI environment:
+
+x64:  vcvarsall x86_x64
+x86:  vcvarsall x64_x86
+
+Eample for a GCC environment:
+
+x64:  msystem mingw64
+x86:  msystem mingw32</code></pre>
+<p>Use the radio buttons to select the active compiling setting.  You can change between MSVC/GCC/x86/x64 any time as you browse and compile to test constant values.</p>
+<h2 id="making-your-own--data-files"  class="underline">Making your own .data files<a href="#making-your-own--data-files"><span class="link">•</span></a></h2>
+<p>A detailed tutorial is needed for this, and i have yet to write one.  Hopefully this will at least get you started.</p>
+<hr style="">
+<p>You can create your own profile from the menu.  A "profile" is simply a list of headers with a title and a few options set for scanning.</p>
+<p>Predefined Constant format:</p>
+<pre><code>const_name1 = value
+const_name2 = value</code></pre>
+<p>Predefined Macro format:</p>
+<pre><code>#define Macro_Name(param1,param2) ((what) &lt;&lt; the | macro &lt;&lt; does)</code></pre>
+<p>When setting the <code>Base Folder</code> for the profile, make sure to only list a single folder (the deepest folder that contains everything).  Adding more than one <code>Base Folder</code> in a profile might generate unusual results.  This will be revisited in the future and only one entry will be enforced, or multiple include directories will be supported again.</p>
+<h3 id="recommended-global-settings---for-scanning-headers" >Recommended Global Settings - for scanning headers<a href="#recommended-global-settings---for-scanning-headers"><span class="link">•</span></a></h3>
+<p>Just copy/paste the following into the Global Settings window.  Please note these constants are required for MSVC (I happen to use BuildTools - CLI only).  I have not yet figured out what the pre-defined constants are for GCC compilers.  I do not recommend using all of the following global constants when scanning headers meant for a GCC compiler.</p>
+<p>To load global/pre-defined constants for MSVC, click the *"Source"* menu > <em>"Global Settings"</em> option.  Copy/paste the following into the <em>"Global Settings"</em> dialog.</p>
+<p>Global Constants (Scanning)</p>
+<pre><code>// https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros
+_MSC_VER = 1920         // required
+_MSC_FULL_VER = 0       // required
+WIN32_LEAN_AND_MEAN = 1 // recommended for lean data files
+UNICODE = 1             // optional - comment out for ANSI
+
+_WIN64 = 1              // uncomment this when pulling x64 constants
+
+// ------------------------- CHOOSE AN ARCHITECTURE -------------------------
+
+_M_AMD64 = 100          // PC x64 - also needs next line
+_M_X64 = 100
+
+//_M_ARM64 = 1          // mobile ARM x64 architecture
+
+//_M_IX86 = 600         // PC x86 - also needs next line
+//_M_IX86_FP = 2
+
+//_M_ARM = 7            // mobile ARM
+
+// ------------------------- Other Global Constants -------------------------
+
+// _CHAR_UNSIGNED = 1   // optional
+
+__COUNTER__ = 0         // these should always be defined
+_INTEGRAL_MAX_BITS = 64
+_WIN32 = 1
+NO_STRICT = 1
+_MSC_EXTENSIONS = 1
+UINT_MAX = 0xFFFFFFFF</code></pre>
+<p>Global Constants (Compiling):</p>
+<pre><code>WIN32_LEAN_AND_MEAN = 1 // recommended for lean data files
+NO_STRICT = 1
+_MSC_EXTENSIONS = 1</code></pre>
+<p>Global Macros:</p>
+<pre><code>#define HRESULT_FROM_WIN32(x) __HRESULT_FROM_WIN32(x)</code></pre>
+<p>Global Includes:</p>
+<pre><code>Windows.h</code></pre>
+<p>Define the architecture you want from the DropDown menu for pulling data.  This is required, since the architecture determines many of the constant values and struct/enum layouts.  The purpose of this DropDown menu is to define simply 64-bit or 32-bit.</p>
+<p>When defining/changing the architecture, also make sure to also edit the Global Constants as needed prior to scanning.  I know this is a bit redundant, but in theory you can also pull constants for mobile ARM/ARM64 architecture as well, not just PC x86 and x64.  More work will be done on this in the future to try and make this a bit less crazy.</p>
+<h2 id="planned-changes:"  class="underline">Planned changes:<a href="#planned-changes:"><span class="link">•</span></a></h2>
+<ul>
+<li>Dump x86 constants for Win10.</li>
+<li>Include global/pre-defined constants for GCC compilers.</li>
+<li>Calculate struct sizes and field offsets (aligned and unaligned) without the compiler (I still will spot check with the compiler though).</li></ul>
+
+<p>Please use the latest AutoHotkey v2-beta.3</p>
+<p>https://www.autohotkey.com/download/2.0/</p></div></div></body></html>

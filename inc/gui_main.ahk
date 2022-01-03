@@ -1,5 +1,5 @@
 load_gui() {
-    g := Gui("+OwnDialogs +Resize +MinSize1076x400","C++ Constants Scanner")
+    g := Gui("+OwnDialogs +Resize +MinSize1076x400","C/C++ Constants Scanner")
     g.OnEvent("close",close_gui), g.OnEvent("size",size_gui)
     g.SetFont("s10","Consolas")
     
@@ -37,7 +37,7 @@ load_gui() {
     ctl.OnEvent("click",gui_events)
     ctl.SetFont("s8","Verdana")
     
-    ctl := g.Add("ListView","xm y+5 w1051 h300 vConstList Checked",["Name","Value","Type","File","D","C"]) ; w1050
+    ctl := g.Add("ListView","xm y+5 w1051 h300 vConstList Checked +LV0x40",["Name","Value","Type","File","D","C"]) ; w1050
     ctl.OnEvent("ContextMenu",gui_context)
     
     If !Settings.Has("ColWidths")
@@ -52,7 +52,7 @@ load_gui() {
     ; g.Add("Text","xm y+5 vHelper","Press CTRL+D to copy selected constant details.")
     g.Add("Text","x500 y+5 w560 Right vFile","Data File:")
     
-    tabCtl := g.Add("Tab3","Section xm y+5 w1050 h142 vTabs",["Details","Duplicates","Critical Dependencies","Settings"]) ; Critical Dependencies
+    tabCtl := g.Add("Tab3","Section xm y+5 w1050 h142 vTabs",["Details","Duplicates","Settings"]) ; Critical Dependencies
     
     tabCtl.UseTab("Details")
     g.Add("Edit","xm y+5 w1050 r7 vDetails ReadOnly","")
@@ -60,13 +60,13 @@ load_gui() {
     tabCtl.UseTab("Duplicates")
     g.Add("Edit","xm y+5 w1050 r7 vDuplicates ReadOnly","")
     
-    tabCtl.UseTab("Critical Dependencies")
-    g.Add("Edit","xm y+5 w1050 r7 vCritDep ReadOnly","")
+    ; tabCtl.UseTab("Critical Dependencies")
+    ; g.Add("Edit","xm y+5 w1050 r7 vCritDep ReadOnly","")
     
     width := 450, ColW := 525
     
     tabCtl.UseTab("Settings")
-    ctl := g.Add("CheckBox","vAutoLoad Section","Auto-Load most recent file on start")
+    ctl := g.Add("CheckBox","vAutoLoad Section","Auto-Load last session on start")
     ctl.OnEvent("click",gui_events)
     ctl.Value := Settings["AutoLoad"]
     
@@ -161,7 +161,7 @@ size_gui(o, MinMax, gW, gH) {
     o["Tabs"].ReDraw()
     o["Details"].Move(,,gW-25)
     o["Duplicates"].Move(,,gW-25)
-    o["CritDep"].Move(,,gW-25)
+    ; o["CritDep"].Move(,,gW-25)
     
     o["File"].Move(,gH-190,gW-515)
     o["File"].ReDraw()
@@ -192,30 +192,50 @@ gui_context(ctl, Item, rc, X, Y) {
     m.Add("&Copy Selected Constants (group)",ListView_MenuEvent)
     m.Add("Copy Selected Constant Details (single - &Focused)",ListView_MenuEvent)
     
-    If (app.ApiPath && Settings["Recents"].Has(app.ApiPath)) {
+    If ((app.ApiPath && Settings["Recents"].Has(app.ApiPath))
+    || DirExist(Settings["GlobBaseFolder"])) && Settings["TextEditorLine"] {
         m.Add()
         m.Add("&Go To #Include",ListView_MenuEvent)
     }
+    
+    m.Add()
+    m.Add("Edit &Value",ListView_MenuEvent)
+    m.Add("Edit &Expr",ListView_MenuEvent)
     
     m.Show()
 }
 
 ListView_MenuEvent(ItemName, ItemPos, Menu) {
     Global Settings, const_list
+    g := app.MainGUI
+    LV := g["ConstList"]
     
     If (ItemName = "&Copy Selected Constants (group)")
         copy_const_group()
     Else If (ItemName = "Copy Selected Constant Details (single - &Focused)")
         copy_const_details()
     Else If (ItemName = "&Go To #Include") {
-        LV := app.mainGUI["ConstList"]
-        baseFolder := Settings["Recents"][app.ApiPath]["BaseFolder"][1]
+        If DirExist(Settings["GlobBaseFolder"])
+            baseFolder := Settings["GlobBaseFolder"]
+        Else If app.ApiPath
+            baseFolder := Settings["Recents"][app.ApiPath]["BaseFolder"][1]
+        Else {
+            Msgbox "Invalid Base Folder specified."
+            return
+        }
         
         obj := const_list[LV.GetText(LV.GetNext())]
         _file := baseFolder "\" obj["file"]
+        cmd := StrReplace(Settings["TextEditorLine"]," -n#"," -n" obj["line"])
+        cmd := StrReplace(cmd,"[file]",'"' _file '"')
         
         If Settings["TextEditorLine"]
-            Run StrReplace(Settings["TextEditorLine"]," -n#"," -n" obj["line"]) ' "' _file '"'
+            Run cmd
+        
+    } Else If (ItemName = "Edit &Value") {
+        details_display(LV,LV.GetNext(),true,"value")
+    } Else If (ItemName = "Edit &Expr") {
+        details_display(LV,LV.GetNext(),true,"exp")
     }
 }
 
@@ -242,7 +262,7 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
         g["ExpFilter"].Value := ""
         g["Details"].Value := ""
         g["Duplicates"].Value := ""
-        g["CritDep"].Value := ""
+        ; g["CritDep"].Value := ""
         g["NameBW"].Value := 0
         g["ValueEQ"].Value := 0
         g["Tabs"].Choose(1)
@@ -284,7 +304,7 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
         (!const_list[constName].Has("critical")) ? const_list[constName]["critical"] := Map() : ""
         
         dupes := const_list[constName]["dupe"].Length
-        critDep := const_list[constName]["critical"].Count
+        ; critDep := const_list[constName]["critical"].Count
         
         If (constType = "Enum" || constType = "Struct") {
             entity_view_exp := (InStr(constExp,"`n") ? "`r`n`r`n" : "") . constExp "`r`n" . (InStr(constExp,"`n") ? "`r`n`r`n" : "")
@@ -316,14 +336,14 @@ gui_events(ctl,info) { ; i, f, s, u, m, st, d ; filters
             g["Duplicates"].Value := dupeStr
         }
         
-        g["CritDep"].Value := ""
-        If (critDep) {
-            crit := const_list[constName]["critical"], critList := "Entries: " crit.Count "`r`n`r`n"
-            For const, o in crit {
-                critList .= const " / Type: " o["type"] " / Value: " o["value"] " / Dupes: Yes`r`n`r`n"
-            }
-            g["CritDep"].Value := Trim(critList,"`r`n")
-        }
+        ; g["CritDep"].Value := ""
+        ; If (critDep) {
+            ; crit := const_list[constName]["critical"], critList := "Entries: " crit.Count "`r`n`r`n"
+            ; For const, o in crit {
+                ; critList .= const " / Type: " o["type"] " / Value: " o["value"] " / Dupes: Yes`r`n`r`n"
+            ; }
+            ; g["CritDep"].Value := Trim(critList,"`r`n")
+        ; }
         
     } Else If (n = "NameFilterClear") {
         g["NameFilter"].Value := ""
@@ -390,7 +410,7 @@ recents_menu() {
 }
 
 load_menubar() {
-    Global Settings
+    Global Settings, includes_all
     ; mb_source := menu()
     ; mb_source.Add("Source &File",menu_events) ; "Source" > "Select C++ Source" submenu
     ; mb_source.Add("Source &Directory",menu_events)
@@ -420,6 +440,8 @@ load_menubar() {
     mb_data.Add("&Save constants",menu_events)
     mb_data.Add()
     mb_data.Add("&Overwrite Automatically",menu_events)
+    mb_data.Add()
+    mb_data.Add("Open &Data Folder",menu_events)
     Settings["OverwriteSave"] ? mb_data.Check("&Overwrite Automatically") : ""
     
     mb_copy := menu()                       ; "List" root menu
@@ -451,19 +473,13 @@ load_menubar() {
     If Settings["AddIncludes"]
         mb_compile.Check("&Only Add #INCLUDES for checked constants")
     
-    If app.ApiPath
-      && Settings.Has("Recents")
-      && Settings["Recents"].Has(app.ApiPath) { ; only attempt this if profile is saved
-      
+    If includes_all.Length { ; only attempt this if profile is saved
         mb_files := menu()
-        prof := Settings["Recents"][app.ApiPath]
-        prof_base := prof["BaseFolder"][1] ; root folder
-        prof_files := prof["OtherDirList"]
         
-        for i, _file in prof_files
-            mb_files.Add("-> " _file[3], menu_events)
+        for i, _file in includes_all
+            mb_files.Add("-> " _file, menu_events)
         
-        If prof_files.Length {
+        If (includes_all.Length > 1) {
             mb_files.Add()
             mb_Files.Add("-> All", menu_events)
         }
@@ -472,14 +488,17 @@ load_menubar() {
     mb_settings := Menu()
     mb_settings.Add("Set &Text Editor: " Settings["TextEditor"], menu_events)
     mb_settings.Add("Set &Go-To Line command: " Settings["TextEditorLine"], menu_events)
+    mb_settings.Add("Set Global &Base Folder: " Settings["GlobBaseFolder"], menu_events)
     
     mb := Menubar()
     mb.Add("&Source", mb_src)
     mb.Add("&Data", mb_data)
     mb.Add("&List", mb_copy)
-    mb.Add("&Compile", mb_compile)
+    RegExMatch(ct := Settings["CompilerType"],"^(x86|x64)_(MSVC|GCC)",&m)
+    If Settings[StrReplace(ct,"_Sel","")] ; only show compiler menu if options are defined
+        mb.Add("&Compile", mb_compile)
     
-    If app.ApiPath
+    If includes_all.Length
         mb.Add("&Includes", mb_files)
     
     mb.Add("S&ettings", mb_settings)
@@ -487,14 +506,24 @@ load_menubar() {
     return mb
 }
 
+check_data_file(_in) {
+    root := A_ScriptDir "\data\*.data"
+    Loop Files root, "R"
+    {
+        If A_LoopFileName = _in
+            return A_LoopFileFullPath
+    }
+    return false
+}
+
 menu_events(ItemName, ItemPos, _o) {
-    Global Settings, const_list
+    Global Settings, const_list, includes_all, sizeof_list
     n := ItemName, g := app.mainGUI
     
     
     
     If (n = "&New Profile") {
-        const_list := "", IncludesList := ""
+        const_list := Map(), includes_all := [], sizeof_list := Map()
         app.mainGUI["ConstList"].Delete()
         app.mainGUI.Title := "C++ Constants Scanner"
         app.ApiPath := ""
@@ -509,6 +538,9 @@ menu_events(ItemName, ItemPos, _o) {
         app.ApiPath := Settings["Recents"][n]["Name"]
         app.mainGUI.Title := "C++ Constants Scanner - " Settings["Recents"][n]["Name"]
         app.mainGUI.Menubar := load_menubar()
+        
+        If (profile:=check_data_file(app.ApiPath ".data"))
+            LoadFile([profile])
     } Else If (n = "C&ollect") Or (n = "&Includes Only") {
         Static scan_type := ["C&ollect","&Includes Only"] ; ,"x64 &MSVC","x86 M&SVC","x64 &GCC","x86 G&CC"]
         For typ in scan_type
@@ -533,8 +565,9 @@ menu_events(ItemName, ItemPos, _o) {
     } Else if (n = "&Overwrite Automatically") {
         Settings["OverwriteSave"] := !Settings["OverwriteSave"]
         app.MainGUI.Menubar := load_menubar()
+    } Else if (n = "Open &Data Folder") {
+        Run('explorer.exe "' A_ScriptDir '\data"')
     
-        
         
         
     } Else if (n="Copy &selected constant details (single - CTRL+SHIFT+D)") {
@@ -574,13 +607,22 @@ menu_events(ItemName, ItemPos, _o) {
     
     
     } Else if (n = "-> All") {
-        _files := Settings["Recents"][app.ApiPath]["OtherDirList"]
-        For i, _file in _files
-            Run '"' Settings["TextEditor"] '" "' _file[3] '"'
+        ; _files := Settings["Recents"][app.ApiPath]["OtherDirList"]
+        For i, _file in includes_all {
+            If FileExist(_file)
+                Run '"' Settings["TextEditor"] '" "' _file[3] '"'
+            Else If FileExist(Settings["GlobBaseFolder"] "\" _file)
+                Run Settings["TextEditor"] ' "' Settings["GlobBaseFolder"] "\" _file '"'
+        }
     
     } Else If (InStr(n,"->") = 1) {
         _file := RegExReplace(n,"^\-> ","")
-        Run Settings["TextEditor"] ' "' _file '"'
+        If FileExist(_file)
+            Run Settings["TextEditor"] ' "' _file '"'
+        Else If FileExist(Settings["GlobBaseFolder"] "\" _file)
+            Run Settings["TextEditor"] ' "' Settings["GlobBaseFolder"] "\" _file '"'
+    
+    
     
     } Else If (InStr(n,"Set &Text Editor:") = 1) {
         obj := InputBox("Enter command line for Text Editor:","Text Editor Command Line",,Settings["TextEditor"])
@@ -593,6 +635,12 @@ menu_events(ItemName, ItemPos, _o) {
         If (obj.result != "OK")
             return
         Settings["TextEditorLine"] := obj.value
+        app.mainGUI.menubar := load_menubar()
+    } Else If (InStr(n,"Set Global &Base Folder") = 1) {
+        obj := InputBox("Enter path to Global Base Folder:","Global Base Folder",,Settings["GlobBaseFolder"])
+        If (obj.result != "OK")
+            return
+        Settings["GlobBaseFolder"] := obj.value
         app.mainGUI.menubar := load_menubar()
     }
 }
@@ -654,7 +702,7 @@ compile_constants() {
 scan_now() {
     Global Settings, abort_parser, prog
     If !app.ApiPath {
-        Msgbox("Select a C++ Source Header file first.",,"Owner" app.mainGUI.hwnd)
+        Msgbox("Select a profile first.",,"Owner" app.mainGUI.hwnd)
         return
     }
     
@@ -672,7 +720,7 @@ scan_now() {
     
     g["Details"].Value := ""
     g["Duplicates"].Value := ""
-    g["CritDep"].Value := ""
+    ; g["CritDep"].Value := ""
     
     g["Tabs"].Choose(1)
     UnlockGui(false)
@@ -750,27 +798,43 @@ result_close(_gui) {
 ; ==================================================================
 ; ==================================================================
 
-details_display(ctl, row) {
-    Global Settings
+details_display(ctl, row, _edit:=false, _name:="") {
+    Global Settings, const_list
     
     if !row
         return
     
     _main := app.mainGUI
+    const := _main["ConstList"].GetText(row)
+    
     g := Gui("+Resize +Owner" _main.hwnd, "Details Display")
     g.OnEvent("Escape",details_close)
     g.OnEvent("Close",details_close)
     g.OnEvent("Size",details_size)
     
-    ctl := g.Add("Edit","vDisp w750 h750 ReadOnly")
-    ctl.Value := _main["Details"].Value
-    ctl.SetFont("s12","Consolas")
-    PostMessage 0xB1, 0, 0, ctl.hwnd
+    If !_edit {
+        edit_ctl := g.Add("Edit","vDisp w750 h750 ReadOnly")
+        edit_ctl.Value := _main["Details"].Value
+    } Else {
+        edit_ctl := g.Add("Edit","vDisp w750 h750")
+        edit_ctl.Value := const_list[const][_name]
+    }
     
-    g.Add("Text","vTxtMsg y+10","Press ESC to exit.")
+    edit_ctl.SetFont("s12","Consolas")
+    If !_edit {
+        PostMessage 0xB1, 0, 0, edit_ctl.hwnd ; EM_SETSEL
+        g.Add("Text","vTxtMsg y+10","Press ESC to exit.")
+    } Else
+        g.Add("Text","vTxtMsg y+10","Press ESC to exit / CTRL + S to save.")
+    
     ctl := g.Add("CheckBox","vMaxDispOpen","Maximize on open")
     ctl.OnEvent("Click",details_event)
     ctl.value := Settings["MaxDispOpen"]
+    
+    app.edit_gui := g
+    app.edit_const := const
+    app.edit_row := row
+    app.edit_prop := _name
     
     g.Show()
     WinWait g.hwnd
@@ -789,6 +853,10 @@ details_event(ctl, info) {
 details_close(_gui) {
     Global Settings
     _gui.Destroy()
+    app.edit_gui := {hwnd:0}
+    app.edit_const := ""
+    app.edit_row := 0
+    app.edit_prop := ""
     
     WinSetEnabled true, "ahk_id " app.mainGUI.hwnd
     WinActivate "ahk_id " app.mainGUI.hwnd 

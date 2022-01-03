@@ -129,7 +129,7 @@ process_define(_in, file_name, lineNum, prof, other:=false) {
         
     } Else If RegExMatch(_in, "[ \t]*#[ \t]*define[ \t]+([\w\$]+)[ \t]+(.+)", &m) { ; const = value
         const_name := m[1]
-        const_value := Trim(m[2]," `t")
+        const_value := number_cleanup(Trim(m[2]," `t"))
         const_type := "Unknown"
         
         If eval(const_value, true)
@@ -419,7 +419,7 @@ header_parser() {
     
     If prof["MakeGlobalCache"] {
         _final := Map("__prof_name"  ,app.ApiPath
-                     ,"__const_list" ,const_other
+                     ,"__const_list" ,const_other.Clone()
                      ,"__sizeof_list",sizeof_list
                      ,"__MacroList"  ,MacroList
                      ,"__cache"      ,true)
@@ -435,7 +435,8 @@ header_parser() {
         const_cache["file"] := _file_name
         const_cache["cache"] := _final
         
-        const_list := const_other
+        const_list := const_other.Clone()
+        const_other := Map()
     }
     
     ; msgbox "done: " _list.Count
@@ -772,7 +773,7 @@ process_entities(_in, prof, file_name) { ; enums/structs/unions with and without
     
     while (++i <= _in.Length) {
         
-        if !(curLine := prune_comments(_in[i][2])) ; || RegExMatch(curLine,rgx_ignore)
+        if !(curLine := prune_comments(_in[i][2]))
             Continue
         lineNum := _in[i][1]
         concat()
@@ -847,11 +848,16 @@ process_entities(_in, prof, file_name) { ; enums/structs/unions with and without
             _p2_temp := prune_entity_semantics(_p2)
             
             If (entity = "struct") { ; a struct with #define's that needs replacement
-                temp_obj := Map("value",_p2_temp,"type","Struct","dupe",[],"critical",Map())
-                _p2_temp := (do_subs(temp_obj,""))["value"]
+                ; temp_obj := Map("value",_p2_temp,"type","Struct","dupe",[],"critical",Map())
+                ; _p2_temp := (do_subs(temp_obj,""))["value"]
             } Else If (entity = "enum") {
-                While RegExMatch(_p2,"(\w+) *\x28(.+?)\x29",&v) && MacroList.Has(v[1])
+                _last_value := ""
+                While RegExMatch(_p2,"(\w+) *\x28(.+?)\x29",&v) && MacroList.Has(v[1]) {
                     _p2 := RegExReplace(_p2,"\Q" v[0] "\E",do_macro(v[0],""))
+                    If (_p2 = _last_value)
+                        Break
+                    _last_value := _p2
+                }
             }
             
             curLine2 := fix_indent(prune_entity_semantics(_p1)
@@ -1053,21 +1059,22 @@ process_entities(_in, prof, file_name) { ; enums/structs/unions with and without
             curLine := RegExReplace(curLine,"typedef[\r\n \t]+","typedef ")
     }
     
-    prune_entity_semantics(_input) {
-        ; sal_funcs := ""
-        ; For _macro, obj in MacroList {
-            ; If RegExMatch(obj["file"],"\\sal\.h$")
-                ; sal_funcs .= (sal_funcs?"|":"") _macro
-        ; }
-        
-        ; msgbox sal_funcs
-        
-        rgx_remove_list := "\[(?:public|private)\]|_Null_terminated_|_NullNull_terminated_|CONST|UNALIGNED|_W64|__RPC_FAR|far|near|"
-        . "FAR|NEAR|POINTER_64|const|_CONST_RETURN|_WConst_return|RESTRICTED_POINTER|"
-        . "__RPC_string|__RPC__(?:in|out)(?:_opt)?|_COM_Outptr_|__RPC_unique_pointer|DECLSPEC_ALIGN\(\d+\)|DECLSPEC_NOINITALL|_Field_z_|"
-        . "(?:_Field_size_|_Field_size_opt_|_Field_range_|_Field_size_bytes_|_Field_size_bytes_opt_|_Return_type_success_|_Struct_size_bytes_"
-        . "|_WINSOCK_DEPRECATED_BY|__RPC__(?:in|out)_ecount_full) *\x28.+?\x29"
-                                
+    prune_entity_semantics(_input,all:=true) {
+        If (all) {
+            rgx_remove_list := "\[(?:public|private)\]|_Null_terminated_|_NullNull_terminated_|UNALIGNED|_W64|"
+            . "__RPC_FAR|far|near|FAR|NEAR|_CONST_RETURN|_WConst_return|RESTRICTED_POINTER|POINTER_64|"
+            . "__RPC_string|__RPC__(?:in|out)(?:_opt)?|_COM_Outptr_|CONST|const|" ; not listed below
+            . "__RPC_unique_pointer|DECLSPEC_ALIGN\(\d+\)|DECLSPEC_NOINITALL|_Field_z_|"
+            . "(?:_Field_size_|_Field_size_opt_|_Field_range_|_Field_size_bytes_|_Field_size_bytes_opt_|_Return_type_success_|_Struct_size_bytes_|"
+            . "__RPC__(?:in|out)_ecount_full|" ; not listed below
+            . "_WINSOCK_DEPRECATED_BY) *\x28.+?\x29"
+        } else {
+            rgx_remove_list := "\[(?:public|private)\]|_Null_terminated_|_NullNull_terminated_|UNALIGNED|_W64|"
+            . "__RPC_FAR|far|near|FAR|NEAR|_CONST_RETURN|_WConst_return|RESTRICTED_POINTER|POINTER_64|"
+            . "__RPC_unique_pointer|DECLSPEC_ALIGN\(\d+\)|DECLSPEC_NOINITALL|_Field_z_|"
+            . "(?:_Field_size_|_Field_size_opt_|_Field_range_|_Field_size_bytes_|_Field_size_bytes_opt_|_Return_type_success_|_Struct_size_bytes_|"
+            . "_WINSOCK_DEPRECATED_BY) *\x28.+?\x29"
+        }
         return RegExReplace(_input,"(?<!\w)(" rgx_remove_list ")(?!\w)","")
     }
 }
@@ -1140,9 +1147,10 @@ commit_item(constName,obj,other:=false) {
         If (!other) && const_other.Has(constName)
             const_other.Delete(constName)
         const_obj[constName] := obj
+        
     } Else If checkDupeConst(const_obj[constName],obj) {
-        If (const_obj[constName]["type"] = "Unknown") && (obj["type"] != "Unknown") {
-            obj["dupe"] := const_obj[constName]["dupe"]
+        If (const_obj[constName]["type"] = "Unknown") && (obj["type"] != "Unknown") {   ; Prioritize known types...
+            obj["dupe"] := const_obj[constName]["dupe"]                                 ; ...move "Unknown" types to dupes.
             const_obj[constName]["dupe"] := []
             obj["dupe"].Push(const_obj[constName])
             const_obj[constName] := obj
@@ -1170,7 +1178,11 @@ create_cpp_file(sizeof:=false,const_ovr:="") {
         cppFile .= "#define " const " " obj["value"] "`r`n"
     
     inc_list := prof["OtherDirList"]
-    BaseFolder := prof["BaseFolder"][1]
+    
+    If DirExist(Settings["GlobBaseFolder"]) ; ----- BaseFolder not use??? ... oops
+        BaseFolder := Settings["GlobBaseFolder"]
+    Else
+        BaseFolder := prof["BaseFolder"][1]
     
     def_inc := []
     If prof["ProcGlobals"] ; process global includes?
@@ -1523,8 +1535,10 @@ do_subs(obj,const,allow_zero:=false) {
     Loop {
         
         Static macro_rgx := "([\w_]+)[ ]*\x28"
-        If RegExMatch(cValue, macro_rgx)
+        If RegExMatch(cValue, macro_rgx) {
+            dbg("do_subs: macro loop: " cValue)
             cValue := do_macro(cValue,const)
+        }
         
         dbg("do_subs: after do_macro(): " cValue)
         
@@ -1683,8 +1697,8 @@ do_macro(fnc,const) {
         } else {
             macro_value := %macro_name%(params*)
             
-            if (Type(macro_value) = "Array") {
-                ; dbg("macro: return predef value: " fnc)
+            if (Type(macro_value) = "Array") || (macro_value="") {
+                dbg("macro: return predef value: " fnc)
                 return fnc
             }
             Else
@@ -1860,6 +1874,8 @@ sizeof(item) {
     If get_const(item,"type") = "String"
         item := get_const(item,"value")
     
+    dbg("sizeof_list: " item)
+    
     If RegExMatch(item,'^L?".*?"$') {
         wide := (InStr(item,"L") = 1)
         item := Trim(LTrim(item,"L"),'"')
@@ -1871,6 +1887,8 @@ sizeof(item) {
         return sizeof_list[item]
     Else If (_size := get_const(item,"size"))
         return _size
+    Else If RegExMatch(item,"^\w+ *\*")
+        return sizeof_list["__int3264"]
     Else
         return ""
 }

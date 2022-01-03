@@ -174,7 +174,7 @@ class progress2 {
         If (this.x = "" Or this.y = "") And this.parent
             x := Cx - (w/2), y := Cy - (h/2)
         
-        progress2_gui.Show("x" x " y" y)
+        progress2_gui.Show((!x && !y) ? "" : "x" x " y" y)
         
         this.x := x, this.y := y
 		this.guiHwnd := progress2_gui.hwnd

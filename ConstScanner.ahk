@@ -32,7 +32,7 @@
 Global Settings:=Map()
 Global c:="" ; console obj
 Global prog:="" ; progress bar
-Global includes_list := Map(), includes_processed := Map(), includes_all:=Map()
+Global includes_list := [], includes_processed := [], includes_all:=[]
 Global const_list:=Map(), const_other:=Map(), typedef_list:=Map(), MacroList:=Map()
 Global const_cache:=Map("file","","cache","")
 Global filteredList := Map()
@@ -51,16 +51,17 @@ If (FileExist("settings.json")) {
 (!Settings.Has("AutoLoad"))         ? Settings["AutoLoad"]          := false : ""
 (!Settings.Has("DisableTooltips"))  ? Settings["DisableTooltips"]   := 1  : 0       ; init default values
 (!Settings.Has("LastFile"))         ? Settings["LastFile"]          := "" : ""
+(!Settings.Has("LastSession"))      ? Settings["LastSession"]       := [] : ""
 (!Settings.Has("lastDir"))          ? Settings["lastDir"]           := "" : ""
 (!Settings.Has("Recents"))          ? Settings["Recents"]           := Map() : ""
 (!Settings.Has("doReset"))          ? Settings["doReset"]           := false : ""
-(!Settings.Has("temp_gui"))         ? app.temp_gui          := {hwnd:0} : ""
+(!Settings.Has("temp_gui"))         ? app.temp_gui                  := {hwnd:0} : ""
 (!Settings.Has("ViewBase"))         ? Settings["ViewBase"]          := "Decimal" : ""
 (!Settings.Has("MaxDispOpen"))      ? Settings["MaxDispOpen"]       := false : ""
 (!Settings.Has("MinMax"))           ? Settings["MinMax"]            := 0 : "" ; 1076, 529
 (!Settings.Has("WH"))               ? Settings["WH"]                := [1076,529] : ""
 
-(!Settings.Has("ApiPath"))          ? app.ApiPath           := "" : ""
+(!Settings.Has("ApiPath"))          ? app.ApiPath                   := "" : ""
 (!Settings.Has("ScanType"))         ? Settings["ScanType"]          := "C&ollect" : ""
 (!Settings.Has("x64_MSVC"))         ? Settings["x64_MSVC"]          := "" : ""
 (!Settings.Has("x86_MSVC"))         ? Settings["x86_MSVC"]          := "" : ""
@@ -96,6 +97,7 @@ If (FileExist("settings.json")) {
 (!Settings.Has("GlobInclude"))      ? Settings["GlobInclude"]       := "" : ""
 (!Settings.Has("GlobScanType"))     ? Settings["GlobScanType"]      := "x64" : ""
 (!Settings.Has("OverwriteSave"))    ? Settings["OverwriteSave"]     := false : ""
+(!Settings.Has("GlobBaseFolder"))   ? Settings["GlobBaseFolder"]    := "" : ""
 
 init_sizeof_list()
 
@@ -155,6 +157,10 @@ class app {
          , temp_gui := ""
          , recent_handle := ""
          , ApiPath := ""
+         , edit_gui := {hwnd:0}
+         , edit_const := ""
+         , edit_row := 0
+         , edit_prop := ""
          ; , GlobConst := Map()
          ; , GlobMacro := Map()
          ; , BoundFunc := ""
@@ -172,7 +178,7 @@ If !DirExist(A_ScriptDir "\cache")
 
 If (Settings["AutoLoad"] And FileExist(Settings["LastFile"])) { ; load data if Auto-Load enabled
     UnlockGui(false)
-    LoadFile(Settings["LastFile"])
+    LoadFile(Settings["LastSession"]) ; reworking for LastSession
     UnlockGui(true)
     app.mainGUI["File"].Value := "File: " Settings["LastFile"]
 }
@@ -233,77 +239,121 @@ listFiles() {
     return fileList
 }
 
-LoadFile(selFile:="") {
-    Global Settings, const_list, includes_list, sizeof_list
+LoadFile(fileArr:="") { ; input is file list array
+    Global Settings, const_list, includes_all, sizeof_list
     Global const_other, const_cache, MacroList
+    fileArr := (fileArr="") ? [] : fileArr
     
-    If (selFile != "" And !FileExist(selFile)) {
-        Msgbox("Previous loaded file no longer exist.`r`n`r`nLoad failed.",,"Owner" app.mainGUI.hwnd)
-        return
-    } Else If (selFile="") {
-        selFile := FileSelect("1",A_ScriptDir "\data\","Load Constant File:","Data file (*.data)")
-        If (!selFile) ; user cancelled
-            return
-        SplitPath selFile,,,&ext
-        If (ext != "data") Or (!FileExist(selFile)) {
-            Msgbox("You must select a *.data file.",,"Owner" app.mainGUI.hwnd)
+    If !fileArr.Length {
+        If !(fileArr := FileSelect("M1",A_ScriptDir "\data\","Load Constant File:","Data file (*.data)")).Length {
+            app.MainGUI.menubar := load_menubar()
+            return ; user cancelled
+        }
+    }
+    
+    For i, _selFile in fileArr { ; make sure all files are valid
+        SplitPath _selFile,,,&_ext
+        If !FileExist(_selFile) || (_ext != "data") {
+            msg := "Invalid file specified:`r`n`r`n" _selFile "`r`n`r`n"
+                 . "Load session cancelled."
+            Msgbox(msg,,"Owner" app.mainGUI.hwnd)
             return
         }
     }
     
     app.mainGUI["Details"].Value := "", app.mainGUI["Duplicates"].Value := ""
+    app.mainGUI["Total"].Value := "Loading files/session.  Please Wait ..."
+    
     UnlockGui(false)
-    SplitPath selFile, &fileName,,,&profName
-    app.mainGUI["Total"].Value := "Loading data file.  Please Wait ..."
     
-    If Settings["Recents"].Has(profName) {
-        prof := Settings["Recents"][app.ApiPath := profName]
-        app.mainGUI.Title := "C++ Constants Scanner - " profName
-        baseFolder := prof["BaseFolder"][1] "\"
-    } Else
-        basefolder := ""
+    app.ApiPath := ""
+    app.mainGUI.Title := "C++ Constants Scanner"
     
-    fileData := FileRead(selFile)
+    const_list := Map()
+    sizeof_list := Map()
+    includes_all := []
+    MacroList := Map()
+    prog := progress2(0,fileArr.Length,"title:Loading Files...")
     
-    in_load_data := jxon_load(&fileData)
-    const_list := in_load_data["__const_list"]
-    If in_load_data["__cache"] {
-        const_cache["cache"] := in_load_data["__const_list"]
-        const_cache["file"]  := profName ".data"
-        MacroList := in_load_data["__MacroList"]
-    } Else {
-        includes_list := []
-        For i, _path in in_load_data["__includes_list"]
-            includes_list.Push(baseFolder _path)
+    For i, _selFile in fileArr {
+        fileData := FileRead(_selFile)
+        SplitPath _selFile,&fileName
+        _data    := jxon_load(&fileData)
+        profName := _data["__prof_name"]
+        prog.Update(i,,fileName)
+        
+        If (fileArr.Length = 1) && Settings["Recents"].Has(profName) { ; if loading a single file
+            app.mainGUI.Title := "C++ Constants Scanner - " (app.ApiPath := profName)
+            If _data["__cache"] { ; only bother with loading cache on single file load
+                const_cache["cache"] := _data.Clone()
+                const_cache["file"]  := _selFile
+                MacroList := _data["__MacroList"]
+            }
+        }
+        
+        If Settings["Recents"].Has(profName) {
+            baseFolder := Settings["Recents"][profName]["BaseFolder"][1] "\"
+        } Else
+            baseFolder := ""
+        
+        For _const, obj in _data["__const_list"] {
+            If const_list.Has(_const) && (const_list[_const]["value"] != obj["value"]) {
+                ; msgbox "Constant overlap and mismatch:`r`n`r`n"
+                     ; . _const "`r`n`r`n"
+                     ; . "Value: Src: " const_list[_const]["value"] " / New: " obj["value"] "`r`n`r`n"
+                     ; . "File: " const_list[_const]["file"] " / " obj["file"] "`r`n`r`n"
+                
+                If obj["dupe"].Length { ; move obj dupes to existing const list
+                    For i, _obj2 in obj["dupe"]
+                        const_list[_const]["dupe"].Push(_obj2)
+                }
+                obj["dupe"] := []
+                const_list[_const]["dupe"].Push(obj) ; push obj to dupes
+            }
+            const_list[_const] := obj
+        }
+        
+        If !_data["__cache"] {
+            For i, include in _data["__includes_list"]
+                includes_all.Push(baseFolder include)
+        }
+        For _type, _size in _data["__sizeof_list"]
+            sizeof_list[_type] := _size
     }
-    sizeof_list := in_load_data["__sizeof_list"]
     
+    prog := "" ; close progress window
     relist_const()
-    app.mainGUI["File"].Value := "Data File: " fileName
-    Settings["LastFile"] := selFile
+    
+    If (fileArr.Length = 1)
+        app.mainGUI["File"].Value := "Data File: " fileName
+    Else
+        app.mainGUI["File"].Value := "Session: " fileArr.Length " files"
+    
+    Settings["LastSession"] := fileArr
+    app.MainGui.menubar := load_menubar()
     
     UnlockGui(true)
 }
 
 SaveFile(saveFile:="") {
-    Global Settings, const_list, includes_list, sizeof_list
+    Global Settings, const_list, includes_all, sizeof_list
     
-    If !app.ApiPath || !Settings["Recents"].Has(app.ApiPath) {
-        Msgbox("Load / Create a profile first, then perform a scan.",,"Owner" app.mainGUI.hwnd)
-        return
-    }
-    
-    saveFile := (!saveFile) ? (A_ScriptDir "\data\" app.ApiPath ".data") : saveFile
-    if !Settings["OverwriteSave"] {
+    if !Settings["OverwriteSave"] || (Settings["LastSession"].Length > 1) {
         saveFile := FileSelect("S 18",saveFile,"Save Data File:")
         If !saveFile
             return ; cancel save operation
-    }
+    
+    } Else If !app.ApiPath || !Settings["Recents"].Has(app.ApiPath) {
+        Msgbox("Load / Create a profile first, then perform a scan.",,"Owner" app.mainGUI.hwnd)
+        return
+    
+    } Else
+        saveFile := (!saveFile) ? (A_ScriptDir "\data\" app.ApiPath ".data") : saveFile
     
     prof := Settings["Recents"][app.ApiPath]
     
     short_includes := []
-    For i, _path in includes_list
+    For i, _path in includes_all
         short_includes.Push(StrReplace(_path,prof["BaseFolder"][1] "\",""))
     
     save_data := Map("__prof_name",app.ApiPath
@@ -350,11 +400,17 @@ UnlockGui(bool) {
     g["Tabs"].Enabled := bool
     
     If (bool) {
-        g.menubar.Enable("&Source"), g.menubar.Enable("&Data")
-        g.menubar.Enable("&List"), g.menubar.Enable("&Compile")
+        g.menubar := load_menubar()
+        ; g.menubar.Enable("&Source")
+        ; g.menubar.Enable("&Data")
+        ; g.menubar.Enable("&List")
+        ; g.menubar.Enable("&Compile")
     } Else {
-        g.menubar.Disable("&Source"), g.menubar.Disable("&Data")
-        g.menubar.Disable("&List"), g.menubar.Enable("&Compile")
+        g.menubar := ""
+        ; g.menubar.Disable("&Source")
+        ; g.menubar.Disable("&Data")
+        ; g.menubar.Disable("&List")
+        ; g.menubar.Enable("&Compile")
     }
 }
 
@@ -587,3 +643,16 @@ F6::{
     MsgBox jxon_dump(const_list[txt],4)
 }
 ^s::SaveFile()
+^e::details_display(app.mainGUI["ConstList"],app.mainGUI["ConstList"].GetNext(),true)
+
+#HotIf WinActive("ahk_id " app.edit_gui.hwnd)
+
+^s::{
+    Global const_list
+    const_list[app.edit_const][app.edit_prop] := (new_val := app.edit_gui["Disp"].Value)
+    If (app.edit_prop = "value")
+        app.mainGUI["ConstList"].Modify(app.edit_row,"Col2",new_val)
+    gui_events(app.mainGUI["ConstList"],app.edit_row)
+    details_close(app.edit_gui)
+}
+TAB::SendInput("    ")
