@@ -2,26 +2,12 @@
 ; GuiControl_Ex
 ; ==================================================================
 
-class ListComboBox_Ext {
+class ListComboBox_Ext { ; apply stuff to ComboBox and ListBox
     Static __New() {
         For prop in this.Prototype.OwnProps() {
             Gui.ListBox.Prototype.%prop% := this.prototype.%prop%
             Gui.ComboBox.Prototype.%prop% := this.prototype.%prop%
         }
-    }
-    
-    GetCount() {
-        If (this.Type = "ListBox")
-            return SendMessage(0x018B, 0, 0, this.hwnd) ; LB_GETCOUNT
-        Else If (this.Type = "ComboBox")
-            return SendMessage(0x146, 0, 0, this.hwnd)  ; CB_GETCOUNT
-    }
-    
-    GetText(row) {
-        If (this.Type = "ListBox")
-            return this._GetString(0x18A,0x189,row) ; 0x18A > LB_GETTEXTLEN // 0x189 > LB_GETTEXT
-        Else if (this.Type = "ComboBox")
-            return this._GetString(0x149,0x148,row) ; 0x149 > CB_GETLBTEXTLEN // 0x148 > CB_GETLBTEXT
     }
     
     GetItems() {
@@ -39,14 +25,46 @@ class ListComboBox_Ext {
     }
 }
 
+class ListBox_Ext extends Gui.ListBox {
+    Static __New() {
+        For prop in this.Prototype.OwnProps()
+            super.Prototype.%prop% := this.Prototype.%prop%
+    }
+    
+    GetCount() => SendMessage(0x018B, 0, 0, this.hwnd) ; LB_GETCOUNT
+    
+    GetText(row) => this._GetString(0x18A,0x189,row) ; 0x18A > LB_GETTEXTLEN // 0x189 > LB_GETTEXT
+}
+
+class ComboBox_Ext extends Gui.ComboBox {
+    Static __New() {
+        super.Prototype._CueText := ""
+        For prop, val in this.Prototype.OwnProps()
+            super.Prototype.%prop% := this.Prototype.%prop%
+        super.Prototype.DefineProp("CueText",{Get:this.Prototype.CueText
+                                            , Set:this.Prototype.CueText})
+    }
+    
+    GetCount() => SendMessage(0x146, 0, 0, this.hwnd)  ; CB_GETCOUNT
+    
+    GetText(row) => this._GetString(0x149,0x148,row) ; 0x149 > CB_GETLBTEXTLEN // 0x148 > CB_GETLBTEXT
+    
+    CueText(p*) { ; thanks to AHK_user and iPhilip for this one: https://www.autohotkey.com/boards/viewtopic.php?p=426941#p426941
+        If !p.Length
+            return this._CueText
+        Else SendMessage(0x1703, 0, StrPtr(this._CueText:=p[1]), this.hwnd)
+    }
+}
+
 class ListView_Ext extends Gui.ListView { ; Technically no need to extend classes unless
     Static __New() { ; you are attaching new base on control creation.
         For prop in this.Prototype.OwnProps()
             super.Prototype.%prop% := this.Prototype.%prop%
     }
-    Checked(row) { ; This was taken directly from the AutoHotkey help files.
-        return (SendMessage(4140,row-1,0xF000,, "ahk_id " this.hwnd) >> 12) - 1 ; VM_GETITEMSTATE = 4140 / LVIS_STATEIMAGEMASK = 0xF000
-    }
+    
+    ; This was taken directly from the AutoHotkey help files.
+    Checked(row) => (SendMessage(4140,row-1,0xF000,, "ahk_id " this.hwnd) >> 12) - 1 ; VM_GETITEMSTATE = 4140 / LVIS_STATEIMAGEMASK = 0xF000
+    
     IconIndex(row,col:=1) { ; from "just me" LV_EX ; Link: https://www.autohotkey.com/boards/viewtopic.php?f=76&t=69262&p=298308#p299057
         LVITEM := Buffer((A_PtrSize=8)?56:40, 0)                   ; create variable/structure
         NumPut("UInt", 0x2, "Int", row-1, "Int", col-1, LVITEM.ptr, 0)  ; LVIF_IMAGE := 0x2 / iItem (row) / column num
@@ -54,8 +72,20 @@ class ListView_Ext extends Gui.ListView { ; Technically no need to extend classe
         SendMessage(StrLen(Chr(0xFFFF))?0x104B:0x1005, 0, LVITEM.ptr,, "ahk_id " this.hwnd) ; LVM_GETITEMA/W := 0x1005 / 0x104B
         return NumGet(LVITEM.ptr, (A_PtrSize=8)?36:28, "Int")+1 ;iImage
     }
-    GetColWidth(n) {
-        return SendMessage(0x101D, n-1, 0, this.hwnd)
+    
+    GetColWidth(n) => SendMessage(0x101D, n-1, 0, this.hwnd)
+}
+
+class StatusBar_Ext extends Gui.StatusBar {
+    Static __New() {
+        For prop in this.Prototype.OwnProps()
+            super.Prototype.%prop% := this.Prototype.%prop%
+    }
+    RemoveIcon(part:=1) {
+        hIcon := SendMessage(0x414, part-1, 0, this.hwnd)
+        If hIcon
+            SendMessage(0x40F, part-1, 0, this.hwnd)
+        return DllCall("DestroyIcon","UPtr",hIcon)
     }
 }
 
@@ -63,8 +93,8 @@ class PicButton extends Gui.Button {
     Static __New() {
         Gui.Prototype.AddPicButton := this.AddPicButton
     }
-    Static AddPicButton(sOptions:="",sPicFile:="",sPicFileOpt:="") {
-        ctl := this.Add("Button",sOptions)
+    Static AddPicButton(sOptions:="",sPicFile:="",sPicFileOpt:="",txt:="") {
+        ctl := this.Add("Button",sOptions,txt)
         ctl.base := PicButton.Prototype
         ctl.SetImg(sPicFile, sPicFileOpt)
         return ctl
@@ -74,8 +104,8 @@ class PicButton extends Gui.Button {
         Static BS_ICON := 0x40, BS_BITMAP := 0x80, BM_SETIMAGE := 0xF7
         
         hImg := LoadPicture(sFile, sOptions, &_type)
-        curStyle := ControlGetStyle(this.hwnd)
-        ControlSetStyle (curStyle | (!_type?BS_BITMAP:BS_ICON)), this.hwnd
+        If !this.Text
+            ControlSetStyle (ControlGetStyle(this.hwnd) | (!_type?BS_BITMAP:BS_ICON)), this.hwnd
         hOldImg := SendMessage(BM_SETIMAGE, _type, hImg, this.hwnd)
         
         If (hOldImg)
@@ -106,6 +136,9 @@ class SplitButton extends Gui.Button {
             
         return ctl
     }
+    
+    Drop() => this.DropCallback(this,0)
+    
     DropCallback(ctl, lParam) {
         ctl.GetPos(&x,&y,,&h)
         f := this.callback, f(ctl,{x:x, y:y+h})
@@ -130,3 +163,26 @@ class ToggleButton extends Gui.Checkbox {
     }
 }
 
+class Edit_Ext extends Gui.Edit {
+    Static __New() {
+        super.Prototype._CueText := "" ; for easy get/read
+        super.Prototype._CueOption := false
+        For prop in this.Prototype.OwnProps()
+            super.Prototype.%prop% := this.prototype.%prop%
+        super.Prototype.DefineProp("CueText",{Get:this.Prototype.CueText
+                                            , Set:this.Prototype.CueText})
+    }
+    Append(txt, top := false) {
+        txtLen := SendMessage(0x000E, 0, 0,,this.hwnd)           ;WM_GETTEXTLENGTH
+        pos := (!top) ? txtLen : 0
+        SendMessage(0x00B1, pos, pos,,this.hwnd)           ;EM_SETSEL
+        SendMessage(0x00C2, False, StrPtr(txt),,this.hwnd)    ;EM_REPLACESEL
+    }
+    CueText(p*) { ; thanks to AHK_user and iPhilip for this one: https://www.autohotkey.com/boards/viewtopic.php?p=426941#p426941
+        If !p.Length
+            return this._CueText
+        Else If (p.Length = 2)
+            SendMessage(0x1501, (this._CueOption := (p[2]?p[2]:0)), StrPtr(this._CueText:=p[1]), this.hwnd)
+    }
+    SetCueText(txt,option:=false) => SendMessage(0x1501, this._CueOption:=option, StrPtr(this._CueText:=txt), this.hwnd)
+}

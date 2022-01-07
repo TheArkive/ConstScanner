@@ -176,7 +176,7 @@ If !DirExist(A_ScriptDir "\data")
 If !DirExist(A_ScriptDir "\cache")
     DirCreate A_ScriptDir "\cache"
 
-If (Settings["AutoLoad"] And FileExist(Settings["LastFile"])) { ; load data if Auto-Load enabled
+If (Settings["AutoLoad"] And Settings["LastSession"].Length) { ; load data if Auto-Load enabled
     UnlockGui(false)
     LoadFile(Settings["LastSession"]) ; reworking for LastSession
     UnlockGui(true)
@@ -321,7 +321,7 @@ LoadFile(fileArr:="") { ; input is file list array
             sizeof_list[_type] := _size
     }
     
-    prog := "" ; close progress window
+    prog.Close() ; close progress window
     relist_const()
     
     If (fileArr.Length = 1)
@@ -399,19 +399,10 @@ UnlockGui(bool) {
     g["ConstList"].Enabled := bool
     g["Tabs"].Enabled := bool
     
-    If (bool) {
+    If (bool)
         g.menubar := load_menubar()
-        ; g.menubar.Enable("&Source")
-        ; g.menubar.Enable("&Data")
-        ; g.menubar.Enable("&List")
-        ; g.menubar.Enable("&Compile")
-    } Else {
+    Else
         g.menubar := ""
-        ; g.menubar.Disable("&Source")
-        ; g.menubar.Disable("&Data")
-        ; g.menubar.Disable("&List")
-        ; g.menubar.Enable("&Compile")
-    }
 }
 
 relist_const() {
@@ -470,20 +461,13 @@ relist_const() {
     fFilter := StrReplace(fFilter,".","\.")
     fFilter := StrReplace(fFilter,"*",".*")
     
-    If (prog != "") And IsObject(prog) {
-        prog.Range("0-" const_list.Count)
-        prog.Title := "Loading..."
-        prog.Update(0," "," ")
-    } Else prog := progress2(0,const_list.Count,"title:Loading...,parent:" g.hwnd)
+    prog := progress2(0,const_list.Count,"title:Loading...,parent:" g.hwnd)
     
     do_all := (!n_fil And !v_fil And !e_fil And !f_fil) ? true : false
     
     For const, obj in const_list {
         prog.Update(A_Index)
         do_filter := false
-        
-        if !obj.Has("value")
-            msgbox jxon_dump(obj,4)
         
         value := obj["value"], expr := obj["exp"], file_name := obj["file"], t := obj["type"]
         
@@ -548,7 +532,7 @@ relist_const() {
         Settings["doReset"]:=false
         g["NameFilter"].Focus()
     }
-    prog := ""
+    prog.Close()
 }
 
 filter_check(hwnd) {

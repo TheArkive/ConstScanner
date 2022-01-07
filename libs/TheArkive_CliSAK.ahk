@@ -607,7 +607,7 @@ class cli {
             , "UPtr", si.ptr                 ; startup info structure - contains stdIn/Out handles
             , "UPtr", pi.ptr)                ; process info sttructure - contains proc/thread handles/IDs
         
-        dbg("env: " this.env " / params: " this.params)
+        ; dbg("env: " this.env " / params: " this.params)
         
         if (r) {
             this.pID := NumGet(pi, p * 2, "UInt")       ; get Process ID and Thread ID
@@ -649,7 +649,6 @@ class cli {
                 stdout := ""
                 While !(prompt := this.getPrompt(stdout)) { ; actually wait for the initial prompt (usually cmd or powershell)
                     Sleep(this.delay)
-                    ; dbg("wtf2")
                     If (_out := this.filterCtlCodes(this.fStdOut.Read())) ; prune esc sequences, just in case
                         stdout .= _out
                 }
@@ -718,7 +717,6 @@ class cli {
             ; VarSetCapacity(lpCharacter, this.conWidth * this.conHeight * 2,0)  ; AHK v1
             lpCharacter := Buffer(this.conWidth * this.conHeight * 2,0)  ; console buffer size to collect
             dwBufferCoord := 0 ; top-left start point for collection
-            ; dwBufferCoord := (1<<16)|1 ; this would be 1,1
             
             result := DllCall("ReadConsoleOutputCharacter"
                              ,"UPtr",this.hStdOut   ; console buffer handle
@@ -766,7 +764,7 @@ class cli {
                 return
             }
             
-            dbg("    buffer: " buf)
+            ; dbg("    buffer: " buf)
             
             this.stdout .= buf
             
@@ -807,7 +805,7 @@ class cli {
         prompt := StrReplace(StrReplace(prompt,"`r",""),"`n","")
         cbPrompt := this.CheckCallback(this.PromptCallback)
         
-        dbg("cli() prompt event: ready: " this.ready " / prompt: " prompt)
+        ; dbg("cli() prompt event: ready: " this.ready " / prompt: " prompt)
         (this.ready) ? this.batchProgress += 1 : ""         ; increment batchProgress / when this is 1, the first command has been completed.
         
         If (this.AutoClean) {
@@ -837,10 +835,7 @@ class cli {
         SetTimer(this.stream, 0)
         If (prompt := this.tricky_shell_check(obj)) { ; Check if this cmd is a tricky shell
             this.do_next_cmd := false     ; ... and if it is ...
-            
-            ; dbg("CLISAK oops...")
-            
-            this.promptEvent(prompt)      ; Throw a prompt, but don't execute next command
+            this.promptEvent(prompt)      ; Trigger a prompt, but don't execute next command
             this.do_next_cmd := true      ; ... that would cause an infinite loop.
             obj := this.shellCmdLines(obj.batch) ; Get next command after changing shells.
         }
